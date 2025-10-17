@@ -158,7 +158,7 @@ export default function AnswerForm({ answers, onAnswersChange, onStageRefsReady 
       };
     }
     
-    if (newShape) {
+    if (newShape && activeAnswerId) {
       updateAnswer(activeAnswerId, {
         shapes: [...currentAnswer.shapes, newShape]
       });
@@ -216,7 +216,7 @@ export default function AnswerForm({ answers, onAnswersChange, onStageRefsReady 
       };
     }
     
-    if (newShape) {
+    if (newShape && activeAnswerId) {
       updateAnswer(activeAnswerId, {
         shapes: [...currentAnswer.shapes, newShape]
       });
@@ -230,7 +230,7 @@ export default function AnswerForm({ answers, onAnswersChange, onStageRefsReady 
 
   const handleShapeDrag = (e: any, shapeId: string) => {
     const currentAnswer = getCurrentAnswer();
-    if (!currentAnswer) return;
+    if (!currentAnswer || !activeAnswerId) return;
     
     const newShapes = currentAnswer.shapes.map(shape => {
       if (shape.id === shapeId) {
@@ -632,7 +632,7 @@ ${tableData.map(row => row.join(' & ')).join(' \\\\ ')}
                             draggable={true}
                             onDragEnd={(e, newX, newY) => {
                               const currentAnswer = getCurrentAnswer();
-                              if (!currentAnswer) return;
+                              if (!currentAnswer || !activeAnswerId) return;
                               
                               const newShapes = currentAnswer.shapes.map(s => {
                                 if (s.id === shape.id) {
@@ -662,7 +662,7 @@ ${tableData.map(row => row.join(' & ')).join(' \\\\ ')}
                             draggable={true}
                             onDragEnd={(e, newX, newY) => {
                               const currentAnswer = getCurrentAnswer();
-                              if (!currentAnswer) return;
+                              if (!currentAnswer || !activeAnswerId) return;
                               
                               const newShapes = currentAnswer.shapes.map(s => {
                                 if (s.id === shape.id) {

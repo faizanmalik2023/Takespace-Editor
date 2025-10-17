@@ -44,7 +44,6 @@ export default function MathShape({
         katex.render(cleanExpression, mathRef.current, {
           throwOnError: false,
           displayMode: false,
-          fontSize: fontSize,
         });
       } catch (error) {
         console.error('KaTeX rendering error:', error);

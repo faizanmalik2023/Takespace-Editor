@@ -2,6 +2,16 @@
 
 import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { 
+  FiFileText, 
+  FiEdit3, 
+  FiFile, 
+  FiBarChart, 
+  FiSettings, 
+  FiSave, 
+  FiUpload, 
+  FiRotateCcw 
+} from 'react-icons/fi';
 
 interface SidebarProps {
   activeSection: string;
@@ -13,11 +23,11 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   const pathname = usePathname();
   
   const sections = [
-    { id: '/', name: 'Create Question', icon: '📋', isRoute: true },
-    { id: '/edit-question', name: 'Edit Questions', icon: '✏️', isRoute: true },
-    { id: 'templates', name: 'Templates', icon: '📋', isRoute: false },
-    { id: 'analytics', name: 'Analytics', icon: '📊', isRoute: false },
-    { id: 'settings', name: 'Settings', icon: '⚙️', isRoute: false },
+    { id: '/', name: 'Create Question', icon: FiFileText, isRoute: true },
+    { id: '/edit-question', name: 'Edit Questions', icon: FiEdit3, isRoute: true },
+    { id: 'templates', name: 'Templates', icon: FiFile, isRoute: false },
+    { id: 'analytics', name: 'Analytics', icon: FiBarChart, isRoute: false },
+    { id: 'settings', name: 'Settings', icon: FiSettings, isRoute: false },
   ];
 
   const handleNavigation = (section: typeof sections[0]) => {
@@ -51,7 +61,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                   : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
-              <span className="text-lg">{section.icon}</span>
+              <section.icon className="w-5 h-5" />
               <span className="text-sm font-medium">{section.name}</span>
             </button>
           ))}
@@ -64,15 +74,15 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
           </h3>
           <div className="space-y-2">
             <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-              <span className="text-base">💾</span>
+              <FiSave className="w-4 h-4" />
               <span>Save Draft</span>
             </button>
             <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-              <span className="text-base">📤</span>
+              <FiUpload className="w-4 h-4" />
               <span>Export</span>
             </button>
             <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-              <span className="text-base">🔄</span>
+              <FiRotateCcw className="w-4 h-4" />
               <span>Recent</span>
             </button>
           </div>

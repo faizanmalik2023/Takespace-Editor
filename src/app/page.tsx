@@ -17,8 +17,10 @@ import QuestionForm from '../components/QuestionForm';
 import AnswerForm from '../components/AnswerForm';
 import CurriculumSelector from '../components/CurriculumSelector';
 import ProtectedRoute from '../components/ProtectedRoute';
+import Card, { CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Tool, Shape, Answer } from '../types';
 import 'katex/dist/katex.min.css';
+import { FiCheck, FiInfo } from 'react-icons/fi';
 
 function CurriculumEditor() {
   const [activeTool, setActiveTool] = useState<Tool>('select');
@@ -503,7 +505,7 @@ function CurriculumEditor() {
       // Step 5: Show success message
       setSaveProgress('Complete!');
       setTimeout(() => {
-        alert(`✓ Question saved successfully!\n\nQuestion ID: ${response.questionId}\n\nDetails:\n- Title: ${questionTitle}\n- Curriculum: ${syllabus} / ${grade} / ${subject}\n- Unit: ${unit}\n- Topic: ${topic}\n- Answers: ${answers.length}\n- Canvas: ${shapes.length > 0 ? 'Yes' : 'No'}`);
+        alert(`Question saved successfully!\n\nQuestion ID: ${response.questionId}\n\nDetails:\n- Title: ${questionTitle}\n- Curriculum: ${syllabus} / ${grade} / ${subject}\n- Unit: ${unit}\n- Topic: ${topic}\n- Answers: ${answers.length}\n- Canvas: ${shapes.length > 0 ? 'Yes' : 'No'}`);
         setSaveProgress('');
         
         // Optionally reset form after successful save
@@ -523,7 +525,7 @@ function CurriculumEditor() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-[#E3F3FF]">
       {/* Header */}
       <Header />
 
@@ -582,10 +584,10 @@ function CurriculumEditor() {
 
                   {/* Canvas Area */}
                   <div className="xl:col-span-2">
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6">
-                      <div className="mb-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Visual Editor</h3>
-                        <p className="text-gray-600">
+                    <Card variant="elevated" padding="md">
+                      <CardHeader>
+                        <CardTitle size="md">Visual Editor</CardTitle>
+                        <CardDescription>
                           {activeTool === 'draw' 
                             ? 'Click and drag to draw freehand. Use the color picker and stroke width controls above.'
                             : activeTool === 'line'
@@ -594,8 +596,8 @@ function CurriculumEditor() {
                             ? 'Click and drag to draw an arrow. Use the color picker and stroke width controls above.'
                             : 'Click on the canvas to add elements. Select elements to move or edit them.'
                           }
-                        </p>
-                      </div>
+                        </CardDescription>
+                      </CardHeader>
 
                     {/* Canvas */}
                     <div 
@@ -820,7 +822,7 @@ function CurriculumEditor() {
               return null;
             })}
                       </div>
-                    </div>
+                    </Card>
                   </div>
                 </div>
               </div>
@@ -836,14 +838,14 @@ function CurriculumEditor() {
 
               {/* Save Button Section */}
               <div className="max-w-7xl mx-auto">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-8">
+                <Card variant="elevated" padding="lg">
                   <div className="text-center space-y-6">
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">Submit Your Question</h3>
-                      <p className="text-gray-600">
+                    <CardHeader>
+                      <CardTitle size="lg">Submit Your Question</CardTitle>
+                      <CardDescription>
                         Send your question with all curriculum details and images to the server
-                      </p>
-                    </div>
+                      </CardDescription>
+                    </CardHeader>
                     
                     {saveProgress && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -883,18 +885,18 @@ function CurriculumEditor() {
                     <div className="text-sm text-gray-500">
                       <p className="font-medium mb-2">What will be sent:</p>
                       <ul className="mt-2 space-y-1 text-left max-w-md mx-auto">
-                        <li>✓ <strong>Curriculum Details:</strong> Syllabus, Grade, Subject, Unit, Topic</li>
-                        <li>✓ <strong>Question Data:</strong> Title, Content, Metadata</li>
-                        <li>✓ <strong>Question Canvas:</strong> PNG image (if available)</li>
-                        <li>✓ <strong>Answer Data:</strong> All 4 answers with text/canvas</li>
-                        <li>✓ <strong>Answer Canvases:</strong> PNG images for canvas answers</li>
+                        <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Curriculum Details:</strong> Syllabus, Grade, Subject, Unit, Topic</li>
+                        <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Question Data:</strong> Title, Content, Metadata</li>
+                        <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Question Canvas:</strong> PNG image (if available)</li>
+                        <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Answer Data:</strong> All 4 answers with text/canvas</li>
+                        <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Answer Canvases:</strong> PNG images for canvas answers</li>
                       </ul>
                       <p className="mt-4 text-xs text-gray-400">
                         (Currently using mock API - Check browser console for FormData details)
                       </p>
                     </div>
                   </div>
-                </div>
+                </Card>
               </div>
             </div>
           </div>

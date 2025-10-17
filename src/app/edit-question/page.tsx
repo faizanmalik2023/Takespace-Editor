@@ -15,8 +15,10 @@ import GraphModal from '../../components/GraphModal';
 import TextEditModal from '../../components/TextEditModal';
 import ClearCanvasModal from '../../components/ClearCanvasModal';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import Card, { CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Tool, Shape, Answer } from '../../types';
 import 'katex/dist/katex.min.css';
+import { FiInfo } from 'react-icons/fi';
 
 interface SearchResult {
   id: string;
@@ -491,7 +493,7 @@ function EditQuestion() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-[#E3F3FF]">
       {/* Header */}
       <Header />
 
@@ -516,8 +518,10 @@ function EditQuestion() {
                   </div>
 
                   {/* Search Section */}
-                  <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6 mb-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Search Questions</h3>
+                  <Card variant="elevated" padding="md" className="mb-6">
+                    <CardHeader>
+                      <CardTitle size="md">Search Questions</CardTitle>
+                    </CardHeader>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                       {/* Syllabus */}
@@ -621,19 +625,22 @@ function EditQuestion() {
 
                     {!syllabus || !grade || !subject ? (
                       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                        <p className="text-sm text-yellow-800">
-                          ℹ️ Please select Syllabus, Grade, and Subject to enable search
+                        <p className="text-sm text-yellow-800 flex items-center gap-2">
+                          <FiInfo className="w-4 h-4" />
+                          Please select Syllabus, Grade, and Subject to enable search
                         </p>
                       </div>
                     ) : null}
-                  </div>
+                  </Card>
 
                   {/* Search Results */}
                   {searchResults.length > 0 && (
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">
-                        Search Results ({searchResults.length})
-                      </h3>
+                    <Card variant="elevated" padding="md">
+                      <CardHeader>
+                        <CardTitle size="md">
+                          Search Results ({searchResults.length})
+                        </CardTitle>
+                      </CardHeader>
                       <div className="space-y-3">
                         {searchResults.map((result) => (
                           <div
@@ -677,12 +684,12 @@ function EditQuestion() {
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </Card>
                   )}
 
                   {/* Empty State */}
                   {searchResults.length === 0 && syllabus && grade && subject && (
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-12 text-center">
+                    <Card variant="elevated" padding="xl" className="text-center">
                       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
                         <svg
                           className="w-8 h-8 text-gray-400"
@@ -698,13 +705,13 @@ function EditQuestion() {
                           />
                         </svg>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      <CardTitle size="md">
                         {isSearching ? 'Searching...' : 'Click "Search" to find questions'}
-                      </h3>
-                      <p className="text-gray-600">
+                      </CardTitle>
+                      <CardDescription>
                         Enter keywords or click search to see all questions for the selected criteria
-                      </p>
-                    </div>
+                      </CardDescription>
+                    </Card>
                   )}
                 </div>
               </div>
@@ -745,19 +752,19 @@ function EditQuestion() {
 
                   {/* Edit Header */}
                   <div className="max-w-7xl mx-auto">
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <Card variant="outlined" className="bg-blue-50 border-blue-200">
                       <div className="flex items-center gap-3">
                         <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                         </svg>
                         <div>
-                          <h3 className="text-lg font-bold text-blue-900">Editing Mode</h3>
-                          <p className="text-sm text-blue-700">
+                          <CardTitle size="sm" className="text-blue-900">Editing Mode</CardTitle>
+                          <CardDescription className="text-blue-700">
                             {syllabus} • {grade} • {subject} • {unit} • {topic}
-                          </p>
+                          </CardDescription>
                         </div>
                       </div>
-                    </div>
+                    </Card>
                   </div>
 
                   {/* Question and Canvas Section */}
@@ -775,10 +782,10 @@ function EditQuestion() {
 
                       {/* Canvas Area */}
                       <div className="xl:col-span-2">
-                        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6">
-                          <div className="mb-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">Visual Editor</h3>
-                            <p className="text-gray-600">
+                        <Card variant="elevated" padding="md">
+                          <CardHeader>
+                            <CardTitle size="md">Visual Editor</CardTitle>
+                            <CardDescription>
                               {activeTool === 'draw' 
                                 ? 'Click and drag to draw freehand.'
                                 : activeTool === 'line'
@@ -786,8 +793,8 @@ function EditQuestion() {
                                 : activeTool === 'arrow'
                                 ? 'Click and drag to draw an arrow.'
                                 : 'Click on the canvas to add elements. Select elements to move or edit them.'}
-                            </p>
-                          </div>
+                            </CardDescription>
+                          </CardHeader>
 
                           <div 
                             ref={containerRef}
@@ -1008,7 +1015,7 @@ function EditQuestion() {
                               return null;
                             })}
                           </div>
-                        </div>
+                        </Card>
                       </div>
                     </div>
                   </div>
@@ -1024,14 +1031,14 @@ function EditQuestion() {
 
                   {/* Update Button Section */}
                   <div className="max-w-7xl mx-auto">
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-8">
+                    <Card variant="elevated" padding="lg">
                       <div className="text-center space-y-6">
-                        <div>
-                          <h3 className="text-2xl font-bold text-gray-900 mb-2">Update Question</h3>
-                          <p className="text-gray-600">
+                        <CardHeader>
+                          <CardTitle size="lg">Update Question</CardTitle>
+                          <CardDescription>
                             Save your changes to update this question
-                          </p>
-                        </div>
+                          </CardDescription>
+                        </CardHeader>
                         
                         {saveProgress && (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1068,7 +1075,7 @@ function EditQuestion() {
                           </div>
                         </button>
                       </div>
-                    </div>
+                    </Card>
                   </div>
                 </div>
               </div>

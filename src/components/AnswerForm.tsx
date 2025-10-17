@@ -11,6 +11,7 @@ import TextEditModal from './TextEditModal';
 import ClearCanvasModal from './ClearCanvasModal';
 import Toolbar from './Toolbar';
 import { Tool, Shape } from '../types';
+import { FiCheck } from 'react-icons/fi';
 import 'katex/dist/katex.min.css';
 
 interface Answer {
@@ -701,7 +702,12 @@ ${tableData.map(row => row.join(' & ')).join(' \\\\ ')}
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {answer.isCorrect ? '✓ Correct Answer' : 'Mark as Correct'}
+                  {answer.isCorrect ? (
+                    <>
+                      <FiCheck className="w-4 h-4 mr-1" />
+                      Correct Answer
+                    </>
+                  ) : 'Mark as Correct'}
                 </button>
               </div>
             </div>

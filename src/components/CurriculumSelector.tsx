@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { FiCheck } from 'react-icons/fi';
 
 interface CurriculumSelectorProps {
   syllabus: string;
@@ -156,7 +157,12 @@ export default function CurriculumSelector({
                     ? loadingTopics
                       ? 'Loading topics...'
                       : `${availableTopics.length} topics available - Select a Topic to proceed`
-                    : '✓ All curriculum fields selected - Ready to create your question!'}
+                    : (
+                      <>
+                        <FiCheck className="w-4 h-4 inline mr-1" />
+                        All curriculum fields selected - Ready to create your question!
+                      </>
+                    )}
                 </p>
               </div>
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '../app/contexts/AuthContext';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -10,6 +11,7 @@ interface HeaderProps {
 export default function Header({ onMenuClick }: HeaderProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const { user, logout } = useAuth();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -26,9 +28,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   }, []);
 
   const handleLogout = () => {
-    // Add your logout logic here
-    console.log('Logging out...');
-    alert('Logout functionality - Connect to your auth system');
+    logout();
     setShowProfileMenu(false);
   };
 
@@ -99,8 +99,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
               {/* User Info Section */}
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-sm font-semibold text-gray-900">User Account</p>
-                <p className="text-xs text-gray-500 mt-1">user@example.com</p>
+                <p className="text-sm font-semibold text-gray-900">{user?.name || 'User Account'}</p>
+                <p className="text-xs text-gray-500 mt-1">{user?.email || 'user@example.com'}</p>
               </div>
 
               {/* Menu Items */}

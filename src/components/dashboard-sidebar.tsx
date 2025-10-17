@@ -2,11 +2,12 @@
 
 import { ChevronDown } from "lucide-react"
 import { useState } from "react"
+import { FiBarChart, FiActivity, FiBook } from "react-icons/fi"
 
 const subjects = [
-  { id: "math", name: "Math", color: "bg-blue-500", icon: "📊" },
-  { id: "science", name: "Science", color: "bg-green-500", icon: "🧪" },
-  { id: "english", name: "English", color: "bg-orange-500", icon: "📚" },
+  { id: "math", name: "Math", color: "bg-blue-500", icon: FiBarChart },
+  { id: "science", name: "Science", color: "bg-green-500", icon: FiActivity },
+  { id: "english", name: "English", color: "bg-orange-500", icon: FiBook },
 ]
 
 const grades = [
@@ -46,7 +47,7 @@ export function DashboardSidebar() {
                 }`}
               >
                 <div className={`w-4 h-4 rounded ${subject.color} flex items-center justify-center`}>
-                  <span className="text-xs text-white">📊</span>
+                  <subject.icon className="w-3 h-3 text-white" />
                 </div>
                 <span className="text-sm font-medium">{subject.name}</span>
               </button>

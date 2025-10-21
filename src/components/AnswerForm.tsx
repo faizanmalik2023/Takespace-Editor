@@ -22,13 +22,32 @@ interface Answer {
   isCorrect: boolean;
 }
 
+interface AnswerImage {
+  id: string;
+  image_type: string;
+  image: string;
+  caption: string;
+  alt_text: string;
+  sort_order: string;
+}
+
 interface AnswerFormProps {
   answers: Answer[];
   onAnswersChange: (answers: Answer[]) => void;
   onStageRefsReady?: (refs: { [answerId: string]: any }) => void;
+  existingImages?: AnswerImage[];
+  onMakeNewCanvas?: (answerId: string) => void;
+  editingAnswerImages?: { [answerId: string]: boolean };
 }
 
-export default function AnswerForm({ answers, onAnswersChange, onStageRefsReady }: AnswerFormProps) {
+export default function AnswerForm({ 
+  answers, 
+  onAnswersChange, 
+  onStageRefsReady, 
+  existingImages = [], 
+  onMakeNewCanvas,
+  editingAnswerImages = {}
+}: AnswerFormProps) {
   const [activeAnswerId, setActiveAnswerId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>('select');
   const [selectedShape, setSelectedShape] = useState<string | null>(null);
@@ -46,6 +65,17 @@ export default function AnswerForm({ answers, onAnswersChange, onStageRefsReady 
   const stageRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRefs = useRef<{ [answerId: string]: any }>({});
+
+  // Get answer image from existing images
+  const getAnswerImage = (answerId: string) => {
+    const imageTypeMap: { [key: string]: string } = {
+      '1': 'choice_a',
+      '2': 'choice_b', 
+      '3': 'choice_c',
+      '4': 'choice_d'
+    };
+    return existingImages.find(img => img.image_type === imageTypeMap[answerId]);
+  };
 
   // Generate unique ID
   const generateId = () => Math.random().toString(36).substr(2, 9);

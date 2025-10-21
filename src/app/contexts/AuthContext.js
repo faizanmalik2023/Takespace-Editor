@@ -54,6 +54,10 @@ export const AuthProvider = ({ children }) => {
       const access = data?.tokens?.access || data?.access;
       const refresh = data?.tokens?.refresh || data?.refresh;
       const userData = data?.user || data?.data?.user;
+      if(userData?.role !== 'editor') {
+        toast.error('You are not authorized to access this page');
+        return { success: false, error: 'You are not authorized to access this page' };
+      }
       
       if (access && userData) {
         const storage = keepSignedIn ? localStorage : sessionStorage;

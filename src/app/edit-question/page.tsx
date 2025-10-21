@@ -17,18 +17,47 @@ import ClearCanvasModal from '../../components/ClearCanvasModal';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Card, { CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Tool, Shape, Answer } from '../../types';
+import { 
+  getSyllabuses, 
+  getLookupGrades, 
+  getLookupSubjects, 
+  getLookupUnits, 
+  getLookupTopics 
+} from '../lib/api';
 import 'katex/dist/katex.min.css';
 import { FiInfo } from 'react-icons/fi';
 
+interface QuestionImage {
+  id: string;
+  image_type: string;
+  image: string;
+  caption: string;
+  alt_text: string;
+  sort_order: string;
+}
+
 interface SearchResult {
   id: string;
-  title: string;
-  syllabus: string;
-  grade: string;
-  subject: string;
-  unit: string;
-  topic: string;
-  createdAt: string;
+  text_content: string;
+  hint: string;
+  correct_answer: string;
+  type: string;
+  category: string;
+  difficulty_level: string;
+  choice_a: string;
+  choice_b: string;
+  choice_c: string;
+  choice_d: string;
+  wrong_answer_1: string;
+  wrong_answer_2: string;
+  wrong_answer_3: string;
+  images: QuestionImage[];
+  topic_name: string;
+  unit_name: string;
+  subject_name: string;
+  created_by_editor_name: string;
+  created_at: string;
+  modified_at: string;
 }
 
 interface QuestionData {
@@ -56,12 +85,27 @@ function EditQuestion() {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   
+  // Lookup API state
+  const [availableSyllabuses, setAvailableSyllabuses] = useState<{id: string, name: string}[]>([]);
+  const [availableGrades, setAvailableGrades] = useState<{id: string, name: string}[]>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<{id: string, name: string}[]>([]);
+  const [availableUnits, setAvailableUnits] = useState<{id: string, name: string}[]>([]);
+  const [availableTopics, setAvailableTopics] = useState<{id: string, name: string}[]>([]);
+  
+  // Loading states for lookup APIs
+  const [loadingSyllabuses, setLoadingSyllabuses] = useState<boolean>(false);
+  const [loadingGrades, setLoadingGrades] = useState<boolean>(false);
+  const [loadingSubjects, setLoadingSubjects] = useState<boolean>(false);
+  const [loadingUnits, setLoadingUnits] = useState<boolean>(false);
+  const [loadingTopics, setLoadingTopics] = useState<boolean>(false);
+  
   // Question editing state (same as create page)
   const [activeTool, setActiveTool] = useState<Tool>('select');
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [selectedShape, setSelectedShape] = useState<string | null>(null);
   const [questionTitle, setQuestionTitle] = useState<string>('');
   const [questionContent, setQuestionContent] = useState<string>('');
+  const [difficulty, setDifficulty] = useState<string>('');
   const [unit, setUnit] = useState<string>('');
   const [topic, setTopic] = useState<string>('');
   const [answers, setAnswers] = useState<Answer[]>([
@@ -88,6 +132,11 @@ function EditQuestion() {
   const [strokeColor, setStrokeColor] = useState('#000000');
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  
+  // Image editing state
+  const [editingQuestionImage, setEditingQuestionImage] = useState<boolean>(false);
+  const [editingAnswerImages, setEditingAnswerImages] = useState<{ [answerId: string]: boolean }>({});
+  const [selectedQuestionData, setSelectedQuestionData] = useState<SearchResult | null>(null);
 
   const stageRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -106,53 +155,135 @@ function EditQuestion() {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // Mock API: Search questions
-  const searchQuestions = async (syllabusVal: string, gradeVal: string, subjectVal: string, query: string): Promise<SearchResult[]> => {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Mock search results
-    const mockResults: SearchResult[] = [
-      {
-        id: 'q1',
-        title: 'Solve the quadratic equation x² + 5x + 6 = 0',
-        syllabus: syllabusVal,
-        grade: gradeVal,
-        subject: subjectVal,
-        unit: 'Algebra',
-        topic: 'Quadratic Equations',
-        createdAt: '2025-10-05T10:30:00Z'
-      },
-      {
-        id: 'q2',
-        title: 'Find the derivative of f(x) = 3x² + 2x - 1',
-        syllabus: syllabusVal,
-        grade: gradeVal,
-        subject: subjectVal,
-        unit: 'Calculus',
-        topic: 'Differentiation',
-        createdAt: '2025-10-04T14:20:00Z'
-      },
-      {
-        id: 'q3',
-        title: 'Calculate the area of a circle with radius 5cm',
-        syllabus: syllabusVal,
-        grade: gradeVal,
-        subject: subjectVal,
-        unit: 'Geometry',
-        topic: 'Area and Perimeter',
-        createdAt: '2025-10-03T09:15:00Z'
-      },
-    ];
+  // Fetch syllabuses on mount
+  useEffect(() => {
+    const fetchSyllabusesData = async () => {
+      try {
+        setLoadingSyllabuses(true);
+        const response = await getSyllabuses();
+        const syllabusData = response?.data?.results || [];
+        setAvailableSyllabuses(syllabusData);
+      } catch (error) {
+        console.error('Error fetching syllabuses:', error);
+        setAvailableSyllabuses([]);
+      } finally {
+        setLoadingSyllabuses(false);
+      }
+    };
 
-    // Filter by search query if provided
-    if (query.trim()) {
-      return mockResults.filter(result => 
-        result.title.toLowerCase().includes(query.toLowerCase()) ||
-        result.topic.toLowerCase().includes(query.toLowerCase())
-      );
+    fetchSyllabusesData();
+  }, []);
+
+  // Fetch grades when syllabus is selected
+  useEffect(() => {
+    if (syllabus) {
+      const fetchGradesData = async () => {
+        try {
+          setLoadingGrades(true);
+          // Reset dependent fields
+          setGrade('');
+          setSubject('');
+          setAvailableGrades([]);
+          setAvailableSubjects([]);
+
+          const response = await getLookupGrades(syllabus);
+          const gradesData = response?.data?.results || [];
+          setAvailableGrades(gradesData);
+        } catch (error) {
+          console.error('Error fetching grades:', error);
+          setAvailableGrades([]);
+        } finally {
+          setLoadingGrades(false);
+        }
+      };
+
+      fetchGradesData();
+    } else {
+      setAvailableGrades([]);
+      setAvailableSubjects([]);
+      setGrade('');
+      setSubject('');
     }
+  }, [syllabus]);
 
-    return mockResults;
+  // Fetch subjects when syllabus and grade are selected
+  useEffect(() => {
+    if (syllabus && grade) {
+      const fetchSubjectsData = async () => {
+        try {
+          setLoadingSubjects(true);
+          // Reset dependent fields
+          setSubject('');
+          setAvailableSubjects([]);
+
+          const response = await getLookupSubjects(syllabus, grade);
+          const subjectsData = response?.data?.results || [];
+          setAvailableSubjects(subjectsData);
+        } catch (error) {
+          console.error('Error fetching subjects:', error);
+          setAvailableSubjects([]);
+        } finally {
+          setLoadingSubjects(false);
+        }
+      };
+
+      fetchSubjectsData();
+    } else {
+      setAvailableSubjects([]);
+      setSubject('');
+    }
+  }, [syllabus, grade]);
+
+  // Real API: Search questions
+  const searchQuestions = async (syllabusVal: string, gradeVal: string, subjectVal: string, query: string): Promise<SearchResult[]> => {
+    try {
+      // Get the access token from localStorage or sessionStorage
+      const accessToken = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+      
+      if (!accessToken) {
+        throw new Error('No access token found. Please log in again.');
+      }
+
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (syllabusVal) params.append('syllabus_id', syllabusVal);
+      if (gradeVal) params.append('grade_id', gradeVal);
+      if (subjectVal) params.append('subject_id', subjectVal);
+      if (query) params.append('q', query);
+
+      const url = `https://dev.takespace.com/api/v1/editor-questions/search/?${params.toString()}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Search API Error Response:', errorText);
+        
+        // If token is invalid, redirect to login
+        if (response.status === 401) {
+          alert('Your session has expired. Please log in again.');
+          localStorage.removeItem('access_token');
+          sessionStorage.removeItem('access_token');
+          window.location.href = '/login';
+          return [];
+        }
+        
+        throw new Error(`Search API Error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data?.data?.questions || [];
+      
+    } catch (error) {
+      console.error('Error searching questions:', error);
+      throw error;
+    }
   };
 
   // Mock API: Fetch question details
@@ -203,14 +334,61 @@ function EditQuestion() {
   const handleSelectQuestion = async (questionId: string) => {
     setSelectedQuestionId(questionId);
     try {
-      const questionData = await fetchQuestionDetails(questionId);
+      // Find the selected question from search results
+      const selectedQuestion = searchResults.find(q => q.id === questionId);
+      if (!selectedQuestion) {
+        throw new Error('Question not found');
+      }
+      
+      // Store the selected question data
+      setSelectedQuestionData(selectedQuestion);
       
       // Populate form with question data
-      setQuestionTitle(questionData.title);
-      setQuestionContent(questionData.content);
-      setUnit(questionData.unit);
-      setTopic(questionData.topic);
-      setAnswers(questionData.answers);
+      setQuestionContent(selectedQuestion.text_content);
+      setUnit(selectedQuestion.unit_name);
+      setTopic(selectedQuestion.topic_name);
+      
+      // Map difficulty level from integer to string
+      const difficultyMap: { [key: string]: string } = {
+        '1': 'Easy',
+        '2': 'Intermediate',
+        '3': 'Hard',
+        '4': 'Olympiad'
+      };
+      setDifficulty(difficultyMap[selectedQuestion.difficulty_level] || 'Easy');
+      
+      // Map answers from API format to our format
+      const mappedAnswers: Answer[] = [
+        { 
+          id: '1', 
+          text: selectedQuestion.correct_answer, 
+          type: selectedQuestion.images.find(img => img.image_type === 'choice_a') ? 'canvas' : 'text', 
+          shapes: [], 
+          isCorrect: true 
+        },
+        { 
+          id: '2', 
+          text: selectedQuestion.wrong_answer_1, 
+          type: selectedQuestion.images.find(img => img.image_type === 'choice_b') ? 'canvas' : 'text', 
+          shapes: [], 
+          isCorrect: false 
+        },
+        { 
+          id: '3', 
+          text: selectedQuestion.wrong_answer_2, 
+          type: selectedQuestion.images.find(img => img.image_type === 'choice_c') ? 'canvas' : 'text', 
+          shapes: [], 
+          isCorrect: false 
+        },
+        { 
+          id: '4', 
+          text: selectedQuestion.wrong_answer_3, 
+          type: selectedQuestion.images.find(img => img.image_type === 'choice_d') ? 'canvas' : 'text', 
+          shapes: [], 
+          isCorrect: false 
+        }
+      ];
+      setAnswers(mappedAnswers);
       
       // Clear canvas (user will redraw if needed)
       setShapes([]);
@@ -218,7 +396,7 @@ function EditQuestion() {
       // Switch to edit mode
       setEditMode('edit');
     } catch (error) {
-      console.error('Error fetching question:', error);
+      console.error('Error loading question:', error);
       alert('Error loading question. Please try again.');
     }
   };
@@ -227,6 +405,7 @@ function EditQuestion() {
   const handleBackToSearch = () => {
     setEditMode('search');
     setSelectedQuestionId(null);
+    setSelectedQuestionData(null);
     setQuestionTitle('');
     setQuestionContent('');
     setUnit('');
@@ -238,6 +417,40 @@ function EditQuestion() {
       { id: '3', text: '', type: 'text', shapes: [], isCorrect: false },
       { id: '4', text: '', type: 'text', shapes: [], isCorrect: false },
     ]);
+    setEditingQuestionImage(false);
+    setEditingAnswerImages({});
+  };
+
+  // Handle "Make new Canvas" for question image
+  const handleMakeNewQuestionCanvas = () => {
+    setEditingQuestionImage(true);
+    setShapes([]); // Clear existing shapes for new drawing
+  };
+
+  // Handle "Make new Canvas" for answer image
+  const handleMakeNewAnswerCanvas = (answerId: string) => {
+    setEditingAnswerImages(prev => ({
+      ...prev,
+      [answerId]: true
+    }));
+  };
+
+  // Get question image from selected question data
+  const getQuestionImage = () => {
+    if (!selectedQuestionData) return null;
+    return selectedQuestionData.images.find(img => img.image_type === 'question');
+  };
+
+  // Get answer image from selected question data
+  const getAnswerImage = (answerId: string) => {
+    if (!selectedQuestionData) return null;
+    const imageTypeMap: { [key: string]: string } = {
+      '1': 'choice_a',
+      '2': 'choice_b', 
+      '3': 'choice_c',
+      '4': 'choice_d'
+    };
+    return selectedQuestionData.images.find(img => img.image_type === imageTypeMap[answerId]);
   };
 
   // Generate unique ID for shapes
@@ -468,24 +681,235 @@ function EditQuestion() {
     setShowClearConfirm(false);
   };
 
+  // Convert Konva stage to PNG Blob for API upload
+  const convertStageToBlob = (stage: any, width: number, height: number): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      try {
+        // Create a temporary canvas with white background
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = width * 2; // 2x for high quality
+        tempCanvas.height = height * 2;
+        
+        if (!tempCtx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        
+        // Fill with white background
+        tempCtx.fillStyle = '#ffffff';
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Get the stage as image data
+        const stageDataURL = stage.toDataURL({
+          mimeType: 'image/png',
+          quality: 1.0,
+          pixelRatio: 2,
+          width: width,
+          height: height
+        });
+        
+        // Create image from stage data
+        const img = new Image();
+        img.onload = () => {
+          // Draw the stage image on top of white background
+          tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+          
+          // Convert to blob
+          tempCanvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to create blob from canvas'));
+            }
+          }, 'image/png', 1.0);
+        };
+        img.onerror = () => {
+          reject(new Error('Failed to load stage image'));
+        };
+        img.src = stageDataURL;
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
   // Save updated question
   const saveUpdatedQuestion = async () => {
     setIsSaving(true);
-    setSaveProgress('Updating question...');
+    setSaveProgress('Validating data...');
     
     try {
-      // Mock API call to update question
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Check authentication
+      if (!selectedQuestionId) {
+        alert('No question selected for update');
+        setIsSaving(false);
+        setSaveProgress('');
+        return;
+      }
+
+      // Validation
+      if (!questionContent.trim()) {
+        alert('Please enter question content');
+        setIsSaving(false);
+        setSaveProgress('');
+        return;
+      }
+
+      if (!syllabus || !grade || !subject) {
+        alert('Please select all curriculum fields (Syllabus, Grade, Subject)');
+        setIsSaving(false);
+        setSaveProgress('');
+        return;
+      }
+
+      if (!difficulty) {
+        alert('Please select a difficulty level for the question');
+        setIsSaving(false);
+        setSaveProgress('');
+        return;
+      }
+
+      const timestamp = Date.now();
       
+      // Step 1: Create FormData for multipart/form-data upload
+      setSaveProgress('Preparing files...');
+      const formData = new FormData();
+      
+      // Add question details
+      formData.append('text_content', questionContent);
+      
+      // Map difficulty level to integer
+      const difficultyMap: { [key: string]: string } = {
+        'Easy': '1',
+        'Intermediate': '2', 
+        'Hard': '3',
+        'Olympiad': '4'
+      };
+      const mappedDifficulty = difficultyMap[difficulty] || '1';
+      formData.append('difficulty_level', mappedDifficulty);
+      
+      formData.append('type', 'choice');
+      formData.append('hint', ''); // Optional hint field
+      
+      // Add correct answer
+      const correctAnswer = answers.find(answer => answer.isCorrect);
+      if (correctAnswer) {
+        formData.append('correct_answer', correctAnswer.text || '');
+        formData.append('choice_a', correctAnswer.text || '');
+      }
+      
+      // Add wrong answers
+      const wrongAnswers = answers.filter(answer => !answer.isCorrect);
+      wrongAnswers.forEach((answer, index) => {
+        formData.append(`wrong_answer_${index + 1}`, answer.text || '');
+        formData.append(`choice_${String.fromCharCode(98 + index)}`, answer.text || ''); // b, c, d
+      });
+      
+      // Step 2: Convert and add question canvas as PNG blob if editing
+      if (editingQuestionImage && stageRef.current && shapes.length > 0) {
+        setSaveProgress('Processing question canvas...');
+        try {
+          const questionBlob = await convertStageToBlob(stageRef.current, stageSize.width, stageSize.height);
+          formData.append('question_image', questionBlob, `question_canvas_${timestamp}.png`);
+        } catch (error) {
+          console.error('Error converting question canvas:', error);
+        }
+      } else {
+        // Send empty to clear existing image
+        formData.append('question_image', '');
+      }
+
+      // Step 3: Process and add answer data
+      setSaveProgress('Processing answers...');
+      
+      // Add correct answer image if it's a canvas type and being edited
+      if (correctAnswer && correctAnswer.type === 'canvas' && editingAnswerImages[correctAnswer.id]) {
+        if (answerStageRefs[correctAnswer.id]) {
+          try {
+            const answerBlob = await convertStageToBlob(answerStageRefs[correctAnswer.id], 600, 300);
+            formData.append('choice_a_image', answerBlob, `correct_answer_${timestamp}.png`);
+          } catch (error) {
+            console.error('Error converting correct answer canvas:', error);
+          }
+        }
+      } else {
+        formData.append('choice_a_image', '');
+      }
+      
+      // Add wrong answer images
+      const wrongAnswerPromises = wrongAnswers.map(async (answer, index) => {
+        const choiceLetter = String.fromCharCode(98 + index); // b, c, d
+        if (answer.type === 'canvas' && editingAnswerImages[answer.id] && answerStageRefs[answer.id]) {
+          try {
+            const answerBlob = await convertStageToBlob(answerStageRefs[answer.id], 600, 300);
+            formData.append(`choice_${choiceLetter}_image`, answerBlob, `wrong_answer_${index + 1}_${timestamp}.png`);
+          } catch (error) {
+            console.error(`Error converting wrong answer ${index + 1} canvas:`, error);
+            formData.append(`choice_${choiceLetter}_image`, '');
+          }
+        } else {
+          formData.append(`choice_${choiceLetter}_image`, '');
+        }
+      });
+
+      await Promise.all(wrongAnswerPromises);
+
+      // Step 4: Send to API
+      setSaveProgress('Sending to server...');
+      
+      // Get the access token from localStorage or sessionStorage
+      const accessToken = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+      
+      if (!accessToken) {
+        throw new Error('No access token found. Please log in again.');
+      }
+
+      // Use the same CSRF token as the API utility
+      const csrfToken = 'TB8QUbGYWtbYimRQnA9cgfvnuIUpqRj9UWpN25DrXkPUresdEwZnzVwTcJTvepDy';
+      
+      console.log('Using access token:', accessToken.substring(0, 20) + '...');
+      console.log('Using CSRF token:', csrfToken.substring(0, 20) + '...');
+
+      const response = await fetch(`https://dev.takespace.com/api/v1/editor-questions/${selectedQuestionId}/`, {
+        method: 'PUT',
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'X-CSRFTOKEN': csrfToken
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Update API Error Response:', errorText);
+        
+        // If token is invalid, redirect to login
+        if (response.status === 401) {
+          alert('Your session has expired. Please log in again.');
+          localStorage.removeItem('access_token');
+          sessionStorage.removeItem('access_token');
+          window.location.href = '/login';
+          return;
+        }
+        
+        throw new Error(`Update API Error: ${response.status} ${response.statusText}`);
+      }
+      
+      const responseData = await response.json();
+      
+      // Step 5: Show success message
       setSaveProgress('Complete!');
       setTimeout(() => {
-        alert('Question updated successfully!');
+        alert(`Question updated successfully!\n\nQuestion ID: ${responseData.id || selectedQuestionId}\n\nDetails:\n- Content: ${questionContent.substring(0, 50)}...\n- Difficulty: ${difficulty}\n- Curriculum: ${syllabus} / ${grade} / ${subject}\n- Unit: ${unit}\n- Topic: ${topic}\n- Answers: ${answers.length}\n- Canvas: ${shapes.length > 0 ? 'Yes' : 'No'}`);
         setSaveProgress('');
         handleBackToSearch();
       }, 500);
+      
     } catch (error) {
       console.error('Error updating question:', error);
-      alert('Error updating question. Please try again.');
+      alert(`Error updating question: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again.`);
       setSaveProgress('');
     } finally {
       setIsSaving(false);
@@ -529,18 +953,31 @@ function EditQuestion() {
                         <label htmlFor="search-syllabus" className="block text-sm font-semibold text-gray-700 mb-2">
                           Syllabus
                         </label>
-                        <select
-                          id="search-syllabus"
-                          value={syllabus}
-                          onChange={(e) => setSyllabus(e.target.value)}
-                          className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-                        >
-                          <option value="">Select Syllabus</option>
-                          <option value="IB">IB</option>
-                          <option value="IGCSE">IGCSE</option>
-                          <option value="Common Core">Common Core</option>
-                          <option value="AP">AP</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            id="search-syllabus"
+                            value={syllabus}
+                            onChange={(e) => setSyllabus(e.target.value)}
+                            disabled={loadingSyllabuses}
+                            className={`w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200 ${
+                              loadingSyllabuses ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            <option value="">
+                              {loadingSyllabuses ? 'Loading syllabuses...' : 'Select Syllabus'}
+                            </option>
+                            {availableSyllabuses.map((syllabusOption) => (
+                              <option key={syllabusOption.id} value={syllabusOption.id}>
+                                {syllabusOption.name}
+                              </option>
+                            ))}
+                          </select>
+                          {loadingSyllabuses && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Grade */}
@@ -548,18 +985,31 @@ function EditQuestion() {
                         <label htmlFor="search-grade" className="block text-sm font-semibold text-gray-700 mb-2">
                           Grade
                         </label>
-                        <select
-                          id="search-grade"
-                          value={grade}
-                          onChange={(e) => setGrade(e.target.value)}
-                          className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-                        >
-                          <option value="">Select Grade</option>
-                          <option value="Grade 9">Grade 9</option>
-                          <option value="Grade 10">Grade 10</option>
-                          <option value="Grade 11">Grade 11</option>
-                          <option value="Grade 12">Grade 12</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            id="search-grade"
+                            value={grade}
+                            onChange={(e) => setGrade(e.target.value)}
+                            disabled={!syllabus || loadingGrades}
+                            className={`w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200 ${
+                              (!syllabus || loadingGrades) ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            <option value="">
+                              {loadingGrades ? 'Loading grades...' : availableGrades.length > 0 ? 'Select Grade' : 'Select Syllabus first'}
+                            </option>
+                            {availableGrades.map((gradeOption) => (
+                              <option key={gradeOption.id} value={gradeOption.id}>
+                                {gradeOption.name}
+                              </option>
+                            ))}
+                          </select>
+                          {loadingGrades && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Subject */}
@@ -567,18 +1017,31 @@ function EditQuestion() {
                         <label htmlFor="search-subject" className="block text-sm font-semibold text-gray-700 mb-2">
                           Subject
                         </label>
-                        <select
-                          id="search-subject"
-                          value={subject}
-                          onChange={(e) => setSubject(e.target.value)}
-                          className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-                        >
-                          <option value="">Select Subject</option>
-                          <option value="Mathematics">Mathematics</option>
-                          <option value="Physics">Physics</option>
-                          <option value="Chemistry">Chemistry</option>
-                          <option value="Biology">Biology</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            id="search-subject"
+                            value={subject}
+                            onChange={(e) => setSubject(e.target.value)}
+                            disabled={!syllabus || !grade || loadingSubjects}
+                            className={`w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200 ${
+                              (!syllabus || !grade || loadingSubjects) ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            <option value="">
+                              {loadingSubjects ? 'Loading subjects...' : availableSubjects.length > 0 ? 'Select Subject' : 'Select Grade first'}
+                            </option>
+                            {availableSubjects.map((subjectOption) => (
+                              <option key={subjectOption.id} value={subjectOption.id}>
+                                {subjectOption.name}
+                              </option>
+                            ))}
+                          </select>
+                          {loadingSubjects && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -642,47 +1105,73 @@ function EditQuestion() {
                         </CardTitle>
                       </CardHeader>
                       <div className="space-y-3">
-                        {searchResults.map((result) => (
-                          <div
-                            key={result.id}
-                            onClick={() => handleSelectQuestion(result.id)}
-                            className="p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all duration-200 group"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h4 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 mb-2">
-                                  {result.title}
-                                </h4>
-                                <div className="flex flex-wrap gap-2 text-sm text-gray-600">
-                                  <span className="px-2 py-1 bg-gray-100 rounded-lg">
-                                    {result.unit}
-                                  </span>
-                                  <span className="px-2 py-1 bg-gray-100 rounded-lg">
-                                    {result.topic}
-                                  </span>
-                                  <span className="px-2 py-1 bg-gray-100 rounded-lg">
-                                    {new Date(result.createdAt).toLocaleDateString()}
-                                  </span>
+                        {searchResults.map((result) => {
+                          // Find question image
+                          const questionImage = result.images.find(img => img.image_type === 'question');
+                          
+                          return (
+                            <div
+                              key={result.id}
+                              onClick={() => handleSelectQuestion(result.id)}
+                              className="p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all duration-200 group"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h4 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 mb-2">
+                                    {result.text_content}
+                                  </h4>
+                                  
+                                  {/* Show question image if available */}
+                                  {questionImage && (
+                                    <div className="mb-3">
+                                      <img 
+                                        src={questionImage.image} 
+                                        alt={questionImage.caption}
+                                        className="max-w-xs max-h-32 object-contain border border-gray-200 rounded-lg"
+                                      />
+                                      <p className="text-xs text-gray-500 mt-1">{questionImage.caption}</p>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex flex-wrap gap-2 text-sm text-gray-600">
+                                    <span className="px-2 py-1 bg-gray-100 rounded-lg">
+                                      {result.unit_name}
+                                    </span>
+                                    <span className="px-2 py-1 bg-gray-100 rounded-lg">
+                                      {result.topic_name}
+                                    </span>
+                                    <span className="px-2 py-1 bg-gray-100 rounded-lg">
+                                      {result.subject_name}
+                                    </span>
+                                    <span className="px-2 py-1 bg-gray-100 rounded-lg">
+                                      {new Date(result.created_at).toLocaleDateString()}
+                                    </span>
+                                    {result.images.length > 0 && (
+                                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg">
+                                        {result.images.length} image{result.images.length > 1 ? 's' : ''}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <svg
+                                    className="w-6 h-6 text-gray-400 group-hover:text-blue-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 5l7 7-7 7"
+                                    />
+                                  </svg>
                                 </div>
                               </div>
-                              <div className="ml-4">
-                                <svg
-                                  className="w-6 h-6 text-gray-400 group-hover:text-blue-600"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9 5l7 7-7 7"
-                                  />
-                                </svg>
-                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </Card>
                   )}
@@ -773,10 +1262,10 @@ function EditQuestion() {
                       {/* Question Form */}
                       <div className="xl:col-span-1">
                         <QuestionForm
-                          questionTitle={questionTitle}
                           questionContent={questionContent}
-                          onTitleChange={setQuestionTitle}
+                          difficulty={difficulty}
                           onContentChange={setQuestionContent}
+                          onDifficultyChange={setDifficulty}
                         />
                       </div>
 
@@ -795,6 +1284,27 @@ function EditQuestion() {
                                 : 'Click on the canvas to add elements. Select elements to move or edit them.'}
                             </CardDescription>
                           </CardHeader>
+
+                          {/* Show existing question image if available */}
+                          {getQuestionImage() && !editingQuestionImage && (
+                            <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-semibold text-gray-700">Current Question Image</h4>
+                                <button
+                                  onClick={handleMakeNewQuestionCanvas}
+                                  className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-200"
+                                >
+                                  Make new Canvas
+                                </button>
+                              </div>
+                              <img 
+                                src={getQuestionImage()?.image} 
+                                alt={getQuestionImage()?.caption}
+                                className="max-w-full max-h-48 object-contain border border-gray-200 rounded-lg"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">{getQuestionImage()?.caption}</p>
+                            </div>
+                          )}
 
                           <div 
                             ref={containerRef}
@@ -1026,6 +1536,9 @@ function EditQuestion() {
                       answers={answers}
                       onAnswersChange={setAnswers}
                       onStageRefsReady={setAnswerStageRefs}
+                      existingImages={selectedQuestionData?.images || []}
+                      onMakeNewCanvas={handleMakeNewAnswerCanvas}
+                      editingAnswerImages={editingAnswerImages}
                     />
                   </div>
 
@@ -1051,9 +1564,9 @@ function EditQuestion() {
                         
                         <button
                           onClick={saveUpdatedQuestion}
-                          disabled={isSaving || !questionTitle.trim()}
+                          disabled={isSaving || !questionContent.trim() || !syllabus || !grade || !subject || !difficulty}
                           className={`group relative px-12 py-4 rounded-xl font-semibold text-white transition-all duration-200 ${
-                            isSaving || !questionTitle.trim()
+                            isSaving || !questionContent.trim() || !syllabus || !grade || !subject || !difficulty
                               ? 'bg-gray-400 cursor-not-allowed'
                               : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105'
                           }`}

@@ -19,16 +19,18 @@ import CurriculumSelector from '../components/CurriculumSelector';
 import ProtectedRoute from '../components/ProtectedRoute';
 import Card, { CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Tool, Shape, Answer } from '../types';
+import { useAuth } from './contexts/AuthContext';
 import 'katex/dist/katex.min.css';
 import { FiCheck, FiInfo } from 'react-icons/fi';
 
 function CurriculumEditor() {
+  const { user, isAuthenticated } = useAuth();
   const [activeTool, setActiveTool] = useState<Tool>('select');
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [selectedShape, setSelectedShape] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<string>('editor');
-  const [questionTitle, setQuestionTitle] = useState<string>('');
   const [questionContent, setQuestionContent] = useState<string>('');
+  const [difficulty, setDifficulty] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveProgress, setSaveProgress] = useState<string>('');
   const [answerStageRefs, setAnswerStageRefs] = useState<{ [answerId: string]: any }>({});
@@ -367,44 +369,49 @@ function CurriculumEditor() {
     });
   };
 
-  // Mock API function - Replace this with your actual API endpoint
+  // TakeSpace API function
   const sendQuestionToAPI = async (formData: FormData): Promise<any> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Get the access token from localStorage or sessionStorage
+    const accessToken = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     
-    // Mock successful response
-    console.log('=== MOCK API CALL ===');
-    console.log('FormData contents:');
-    for (const [key, value] of formData.entries()) {
-      if (value instanceof Blob) {
-        console.log(`${key}: [Blob/File - ${value.size} bytes, type: ${value.type}]`);
-      } else {
-        console.log(`${key}:`, value);
-      }
+    if (!accessToken) {
+      throw new Error('No access token found. Please log in again.');
     }
-    console.log('===================');
+
+    // Use the same CSRF token as the API utility
+    const csrfToken = 'TB8QUbGYWtbYimRQnA9cgfvnuIUpqRj9UWpN25DrXkPUresdEwZnzVwTcJTvepDy';
     
-    // Return mock success response
-    return {
-      success: true,
-      questionId: 'mock-question-' + Date.now(),
-      message: 'Question saved successfully'
-    };
-    
-    /* 
-    // REPLACE THE ABOVE WITH YOUR ACTUAL API CALL:
-    const response = await fetch('https://your-api.com/api/questions', {
+    console.log('Using access token:', accessToken.substring(0, 20) + '...');
+    console.log('Using CSRF token:', csrfToken.substring(0, 20) + '...');
+
+    const response = await fetch('https://dev.takespace.com/api/v1/editor-questions/', {
       method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'X-CSRFTOKEN': csrfToken
+      },
       body: formData,
-      // Don't set Content-Type header - browser will set it automatically with boundary
     });
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      
+      // If token is invalid, redirect to login
+      if (response.status === 401) {
+        alert('Your session has expired. Please log in again.');
+        // Clear auth and redirect
+        localStorage.removeItem('access_token');
+        sessionStorage.removeItem('access_token');
+        window.location.href = '/login';
+        return;
+      }
+      
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
     
     return await response.json();
-    */
   };
 
   // Save question and answers - Send to API
@@ -413,9 +420,17 @@ function CurriculumEditor() {
     setSaveProgress('Validating data...');
     
     try {
+      // Check authentication
+      if (!isAuthenticated) {
+        alert('You must be logged in to submit questions');
+        setIsSaving(false);
+        setSaveProgress('');
+        return;
+      }
+
       // Validation
-      if (!questionTitle.trim()) {
-        alert('Please enter a question title');
+      if (!questionContent.trim()) {
+        alert('Please enter question content');
         setIsSaving(false);
         setSaveProgress('');
         return;
@@ -428,70 +443,95 @@ function CurriculumEditor() {
         return;
       }
 
+      if (!difficulty) {
+        alert('Please select a difficulty level for the question');
+        setIsSaving(false);
+        setSaveProgress('');
+        return;
+      }
+
       const timestamp = Date.now();
       
       // Step 1: Create FormData for multipart/form-data upload
       setSaveProgress('Preparing files...');
       const formData = new FormData();
       
-      // Add curriculum information
-      formData.append('syllabus', syllabus);
-      formData.append('grade', grade);
-      formData.append('subject', subject);
-      formData.append('unit', unit);
-      formData.append('topic', topic);
+      // Add curriculum information (using IDs from the API)
+      formData.append('syllabus_id', syllabus);
+      formData.append('grade_id', grade);
+      formData.append('unit_id', unit);
+      formData.append('topic_id', topic);
       
       // Add question details
-      formData.append('title', questionTitle);
-      formData.append('content', questionContent || 'Question created with visual elements');
-      formData.append('timestamp', new Date().toISOString());
+      formData.append('text_content', questionContent);
+      
+      // Map difficulty level to integer
+      const difficultyMap: { [key: string]: string } = {
+        'Easy': '1',
+        'Intermediate': '2', 
+        'Hard': '3',
+        'Olympiad': '4'
+      };
+      const mappedDifficulty = difficultyMap[difficulty] || '1';
+      formData.append('difficulty_level', mappedDifficulty);
+      
+      console.log(`Difficulty mapping: "${difficulty}" -> "${mappedDifficulty}"`);
+      
+      formData.append('type', 'choice');
+      formData.append('hint', ''); // Optional hint field
       
       // Step 2: Convert and add question canvas as PNG blob
       if (stageRef.current && shapes.length > 0) {
         setSaveProgress('Processing question canvas...');
         try {
           const questionBlob = await convertStageToBlob(stageRef.current, stageSize.width, stageSize.height);
-          formData.append('questionCanvas', questionBlob, `question_canvas_${timestamp}.png`);
-          formData.append('hasQuestionCanvas', 'true');
+          formData.append('question_image', questionBlob, `question_canvas_${timestamp}.png`);
+          formData.append('question_image_caption', 'Question visual content');
         } catch (error) {
           console.error('Error converting question canvas:', error);
-          formData.append('hasQuestionCanvas', 'false');
         }
-      } else {
-        formData.append('hasQuestionCanvas', 'false');
       }
 
       // Step 3: Process and add answer data
       setSaveProgress('Processing answers...');
-      const answerPromises = answers.map(async (answer, index) => {
-        const answerData = {
-          id: answer.id,
-          text: answer.text,
-          type: answer.type,
-          isCorrect: answer.isCorrect,
-          position: index
-        };
+      
+      // Find correct answer and wrong answers
+      const correctAnswer = answers.find(answer => answer.isCorrect);
+      const wrongAnswers = answers.filter(answer => !answer.isCorrect);
+      
+      // Add correct answer
+      if (correctAnswer) {
+        formData.append('correct_answer', correctAnswer.text || '');
         
-        // Add answer metadata
-        formData.append(`answers[${index}]`, JSON.stringify(answerData));
+        // Add correct answer image if it's a canvas type
+        if (correctAnswer.type === 'canvas' && correctAnswer.shapes.length > 0 && answerStageRefs[correctAnswer.id]) {
+          try {
+            const answerBlob = await convertStageToBlob(answerStageRefs[correctAnswer.id], 600, 300);
+            formData.append('answer_image', answerBlob, `correct_answer_${timestamp}.png`);
+            formData.append('answer_image_caption', 'Correct answer visual content');
+          } catch (error) {
+            console.error('Error converting correct answer canvas:', error);
+          }
+        }
+      }
+      
+      // Add wrong answers
+      const wrongAnswerPromises = wrongAnswers.map(async (answer, index) => {
+        formData.append(`wrong_answer_${index + 1}`, answer.text || '');
         
-        // Convert and add answer canvas if it exists
+        // Add wrong answer image if it's a canvas type
         if (answer.type === 'canvas' && answer.shapes.length > 0 && answerStageRefs[answer.id]) {
           try {
             const answerBlob = await convertStageToBlob(answerStageRefs[answer.id], 600, 300);
-            const answerType = answer.isCorrect ? 'correct' : 'wrong';
-            formData.append(
-              `answerCanvas_${index}`, 
-              answerBlob, 
-              `answer_${index + 1}_${answerType}_${timestamp}.png`
-            );
+            formData.append(`wrong_answer_${index + 1}_image`, answerBlob, `wrong_answer_${index + 1}_${timestamp}.png`);
+            formData.append(`wrong_answer_${index + 1}_image_caption`, `Wrong answer ${index + 1} visual content`);
           } catch (error) {
-            console.error(`Error converting answer ${index} canvas:`, error);
+            console.error(`Error converting wrong answer ${index + 1} canvas:`, error);
           }
         }
       });
 
-      await Promise.all(answerPromises);
+      await Promise.all(wrongAnswerPromises);
 
       // Add metadata
       formData.append('totalShapes', shapes.length.toString());
@@ -505,7 +545,7 @@ function CurriculumEditor() {
       // Step 5: Show success message
       setSaveProgress('Complete!');
       setTimeout(() => {
-        alert(`Question saved successfully!\n\nQuestion ID: ${response.questionId}\n\nDetails:\n- Title: ${questionTitle}\n- Curriculum: ${syllabus} / ${grade} / ${subject}\n- Unit: ${unit}\n- Topic: ${topic}\n- Answers: ${answers.length}\n- Canvas: ${shapes.length > 0 ? 'Yes' : 'No'}`);
+        alert(`Question saved successfully!\n\nQuestion ID: ${response.id || 'N/A'}\n\nDetails:\n- Content: ${questionContent.substring(0, 50)}...\n- Difficulty: ${difficulty}\n- Curriculum: ${syllabus} / ${grade} / ${subject}\n- Unit: ${unit}\n- Topic: ${topic}\n- Answers: ${answers.length}\n- Canvas: ${shapes.length > 0 ? 'Yes' : 'No'}`);
         setSaveProgress('');
         
         // Optionally reset form after successful save
@@ -575,10 +615,10 @@ function CurriculumEditor() {
                   {/* Question Form */}
                   <div className="xl:col-span-1">
                   <QuestionForm
-                    questionTitle={questionTitle}
                     questionContent={questionContent}
-                    onTitleChange={setQuestionTitle}
+                    difficulty={difficulty}
                     onContentChange={setQuestionContent}
+                    onDifficultyChange={setDifficulty}
                   />
                   </div>
 
@@ -858,9 +898,9 @@ function CurriculumEditor() {
                     
                     <button
                       onClick={saveQuestionAndAnswers}
-                      disabled={isSaving || !syllabus || !grade || !subject || !unit || !topic || !questionTitle.trim()}
+                      disabled={isSaving || !syllabus || !grade || !subject || !unit || !topic || !questionContent.trim() || !difficulty}
                       className={`group relative px-12 py-4 rounded-xl font-semibold text-white transition-all duration-200 ${
-                        isSaving || !syllabus || !grade || !subject || !unit || !topic || !questionTitle.trim()
+                        isSaving || !syllabus || !grade || !subject || !unit || !topic || !questionContent.trim() || !difficulty
                           ? 'bg-gray-400 cursor-not-allowed'
                           : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105'
                       }`}
@@ -886,13 +926,13 @@ function CurriculumEditor() {
                       <p className="font-medium mb-2">What will be sent:</p>
                       <ul className="mt-2 space-y-1 text-left max-w-md mx-auto">
                         <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Curriculum Details:</strong> Syllabus, Grade, Subject, Unit, Topic</li>
-                        <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Question Data:</strong> Title, Content, Metadata</li>
+                        <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Question Data:</strong> Content, Difficulty, Metadata</li>
                         <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Question Canvas:</strong> PNG image (if available)</li>
                         <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Answer Data:</strong> All 4 answers with text/canvas</li>
                         <li className="flex items-center gap-2"><FiCheck className="w-4 h-4 text-green-500" /><strong>Answer Canvases:</strong> PNG images for canvas answers</li>
                       </ul>
                       <p className="mt-4 text-xs text-gray-400">
-                        (Currently using mock API - Check browser console for FormData details)
+                        (Sending to TakeSpace API - Check browser console for details)
                       </p>
                     </div>
                   </div>

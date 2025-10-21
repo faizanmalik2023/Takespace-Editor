@@ -2,6 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { FiCheck } from 'react-icons/fi';
+import { 
+  getSyllabuses, 
+  getLookupGrades, 
+  getLookupSubjects, 
+  getLookupUnits, 
+  getLookupTopics 
+} from '@/app/lib/api';
+
+interface CurriculumItem {
+  id: string;
+  name: string;
+}
 
 interface CurriculumSelectorProps {
   syllabus: string;
@@ -28,102 +40,169 @@ export default function CurriculumSelector({
   onUnitChange,
   onTopicChange,
 }: CurriculumSelectorProps) {
-  // Dynamic units and topics from API
-  const [availableUnits, setAvailableUnits] = useState<string[]>([]);
-  const [availableTopics, setAvailableTopics] = useState<string[]>([]);
+  // Available options from API
+  const [availableSyllabuses, setAvailableSyllabuses] = useState<CurriculumItem[]>([]);
+  const [availableGrades, setAvailableGrades] = useState<CurriculumItem[]>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<CurriculumItem[]>([]);
+  const [availableUnits, setAvailableUnits] = useState<CurriculumItem[]>([]);
+  const [availableTopics, setAvailableTopics] = useState<CurriculumItem[]>([]);
+
+  // Loading states
+  const [loadingSyllabuses, setLoadingSyllabuses] = useState<boolean>(false);
+  const [loadingGrades, setLoadingGrades] = useState<boolean>(false);
+  const [loadingSubjects, setLoadingSubjects] = useState<boolean>(false);
   const [loadingUnits, setLoadingUnits] = useState<boolean>(false);
   const [loadingTopics, setLoadingTopics] = useState<boolean>(false);
 
-  // Mock API function to fetch units based on syllabus, grade, and subject
-  const fetchUnits = async (syllabusValue: string, gradeValue: string, subjectValue: string): Promise<string[]> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Mock data - in real implementation, this would be an API call
-    const mockUnitsData: { [key: string]: string[] } = {
-      'IB-Grade 11-Mathematics': ['Algebra', 'Functions', 'Geometry and Trigonometry', 'Statistics and Probability', 'Calculus'],
-      'IB-Grade 11-Physics': ['Measurements and Uncertainties', 'Mechanics', 'Thermal Physics', 'Waves', 'Electricity and Magnetism'],
-      'IB-Grade 11-Chemistry': ['Stoichiometry', 'Atomic Structure', 'Periodicity', 'Chemical Bonding', 'Energetics'],
-      'IGCSE-Grade 10-Mathematics': ['Number', 'Algebra and Graphs', 'Coordinate Geometry', 'Geometry', 'Mensuration', 'Trigonometry', 'Vectors and Transformations', 'Probability', 'Statistics'],
-      'IGCSE-Grade 10-Physics': ['General Physics', 'Thermal Physics', 'Properties of Waves', 'Electricity and Magnetism', 'Atomic Physics'],
-      'Common Core-Grade 9-Mathematics': ['Expressions and Equations', 'Functions', 'Geometry', 'Statistics and Probability'],
-      'AP-Grade 12-Calculus': ['Limits and Continuity', 'Differentiation', 'Integration', 'Applications of Derivatives', 'Applications of Integrals'],
-      'default': ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5']
+  // Fetch syllabuses on mount
+  useEffect(() => {
+    const fetchSyllabusesData = async () => {
+      try {
+        setLoadingSyllabuses(true);
+        const response = await getSyllabuses();
+        const syllabusData = response?.data?.results || [];
+        setAvailableSyllabuses(syllabusData);
+      } catch (error) {
+        console.error('Error fetching syllabuses:', error);
+        setAvailableSyllabuses([]);
+      } finally {
+        setLoadingSyllabuses(false);
+      }
     };
-    
-    const key = `${syllabusValue}-${gradeValue}-${subjectValue}`;
-    return mockUnitsData[key] || mockUnitsData['default'];
-  };
 
-  // Mock API function to fetch topics based on selected unit
-  const fetchTopics = async (syllabusValue: string, gradeValue: string, subjectValue: string, unitValue: string): Promise<string[]> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Mock data - in real implementation, this would be an API call
-    const mockTopicsData: { [key: string]: string[] } = {
-      'Algebra': ['Linear Equations', 'Quadratic Equations', 'Polynomials', 'Exponential Functions', 'Logarithmic Functions'],
-      'Functions': ['Domain and Range', 'Composite Functions', 'Inverse Functions', 'Transformations of Functions'],
-      'Geometry and Trigonometry': ['Trigonometric Ratios', 'Trigonometric Identities', 'Vectors', 'Three-Dimensional Geometry'],
-      'Statistics and Probability': ['Descriptive Statistics', 'Probability Distributions', 'Binomial Distribution', 'Normal Distribution'],
-      'Calculus': ['Limits and Derivatives', 'Integration', 'Applications of Differentiation', 'Differential Equations'],
-      'Measurements and Uncertainties': ['SI Units', 'Uncertainty and Error', 'Vectors and Scalars'],
-      'Mechanics': ['Motion', 'Forces', 'Work Energy and Power', 'Momentum and Impulse'],
-      'Thermal Physics': ['Temperature and Heat', 'Thermal Properties of Matter', 'Ideal Gases'],
-      'Waves': ['Wave Properties', 'Wave Phenomena', 'Standing Waves'],
-      'Electricity and Magnetism': ['Electric Fields', 'Electric Circuits', 'Magnetic Fields', 'Electromagnetic Induction'],
-      'Stoichiometry': ['Mole Concept', 'Chemical Equations', 'Mass and Volume Relationships'],
-      'Atomic Structure': ['Atomic Models', 'Electron Configuration', 'Isotopes'],
-      'Number': ['Integers', 'Fractions and Decimals', 'Percentages', 'Ratio and Proportion'],
-      'Algebra and Graphs': ['Linear Equations', 'Simultaneous Equations', 'Quadratic Equations', 'Graphing'],
-      'default': ['Topic 1.1', 'Topic 1.2', 'Topic 1.3', 'Topic 1.4']
-    };
-    
-    return mockTopicsData[unitValue] || mockTopicsData['default'];
-  };
+    fetchSyllabusesData();
+  }, []);
+
+  // Fetch grades when syllabus is selected
+  useEffect(() => {
+    if (syllabus) {
+      const fetchGradesData = async () => {
+        try {
+          setLoadingGrades(true);
+          // Reset dependent fields
+          onGradeChange('');
+          onSubjectChange('');
+          onUnitChange('');
+          onTopicChange('');
+          setAvailableGrades([]);
+          setAvailableSubjects([]);
+          setAvailableUnits([]);
+          setAvailableTopics([]);
+
+          const response = await getLookupGrades(syllabus);
+          const gradesData = response?.data?.results || [];
+          setAvailableGrades(gradesData);
+        } catch (error) {
+          console.error('Error fetching grades:', error);
+          setAvailableGrades([]);
+        } finally {
+          setLoadingGrades(false);
+        }
+      };
+
+      fetchGradesData();
+    } else {
+      setAvailableGrades([]);
+      setAvailableSubjects([]);
+      setAvailableUnits([]);
+      setAvailableTopics([]);
+      onGradeChange('');
+      onSubjectChange('');
+      onUnitChange('');
+      onTopicChange('');
+    }
+  }, [syllabus]);
+
+  // Fetch subjects when syllabus and grade are selected
+  useEffect(() => {
+    if (syllabus && grade) {
+      const fetchSubjectsData = async () => {
+        try {
+          setLoadingSubjects(true);
+          // Reset dependent fields
+          onSubjectChange('');
+          onUnitChange('');
+          onTopicChange('');
+          setAvailableSubjects([]);
+          setAvailableUnits([]);
+          setAvailableTopics([]);
+
+          const response = await getLookupSubjects(syllabus, grade);
+          const subjectsData = response?.data?.results || [];
+          setAvailableSubjects(subjectsData);
+        } catch (error) {
+          console.error('Error fetching subjects:', error);
+          setAvailableSubjects([]);
+        } finally {
+          setLoadingSubjects(false);
+        }
+      };
+
+      fetchSubjectsData();
+    } else {
+      setAvailableSubjects([]);
+      setAvailableUnits([]);
+      setAvailableTopics([]);
+      onSubjectChange('');
+      onUnitChange('');
+      onTopicChange('');
+    }
+  }, [syllabus, grade]);
 
   // Fetch units when syllabus, grade, and subject are all selected
   useEffect(() => {
     if (syllabus && grade && subject) {
-      setLoadingUnits(true);
-      onUnitChange(''); // Reset unit selection
-      onTopicChange(''); // Reset topic selection
-      setAvailableTopics([]); // Clear topics
-      
-      fetchUnits(syllabus, grade, subject)
-        .then(units => {
-          setAvailableUnits(units);
-          setLoadingUnits(false);
-        })
-        .catch(error => {
-          console.error('Error fetching units:', error);
-          setLoadingUnits(false);
+      const fetchUnitsData = async () => {
+        try {
+          setLoadingUnits(true);
+          // Reset dependent fields
+          onUnitChange('');
+          onTopicChange('');
           setAvailableUnits([]);
-        });
+          setAvailableTopics([]);
+          
+          const response = await getLookupUnits(syllabus, grade, subject);
+          const unitsData = response?.data?.results || [];
+          setAvailableUnits(unitsData);
+        } catch (error) {
+          console.error('Error fetching units:', error);
+          setAvailableUnits([]);
+        } finally {
+          setLoadingUnits(false);
+        }
+      };
+
+      fetchUnitsData();
     } else {
       setAvailableUnits([]);
+      setAvailableTopics([]);
       onUnitChange('');
       onTopicChange('');
-      setAvailableTopics([]);
     }
   }, [syllabus, grade, subject]);
 
-  // Fetch topics when unit is selected
+  // Fetch topics when all previous fields including unit are selected
   useEffect(() => {
     if (syllabus && grade && subject && unit) {
-      setLoadingTopics(true);
-      onTopicChange(''); // Reset topic selection
-      
-      fetchTopics(syllabus, grade, subject, unit)
-        .then(topics => {
-          setAvailableTopics(topics);
-          setLoadingTopics(false);
-        })
-        .catch(error => {
-          console.error('Error fetching topics:', error);
-          setLoadingTopics(false);
+      const fetchTopicsData = async () => {
+        try {
+          setLoadingTopics(true);
+          // Reset topic selection
+          onTopicChange('');
           setAvailableTopics([]);
-        });
+          
+          const response = await getLookupTopics(syllabus, grade, subject, unit);
+          const topicsData = response?.data?.results || [];
+          setAvailableTopics(topicsData);
+        } catch (error) {
+          console.error('Error fetching topics:', error);
+          setAvailableTopics([]);
+        } finally {
+          setLoadingTopics(false);
+        }
+      };
+
+      fetchTopicsData();
     } else {
       setAvailableTopics([]);
       onTopicChange('');
@@ -147,16 +226,24 @@ export default function CurriculumSelector({
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-blue-900">
-                  {!syllabus || !grade || !subject 
-                    ? 'Please select Syllabus, Grade, and Subject to load available Units' 
+                  {!syllabus
+                    ? 'Please select a Syllabus to begin'
+                    : !grade
+                    ? loadingGrades
+                      ? 'Loading grades...'
+                      : `${availableGrades.length} grades available - Select a Grade`
+                    : !subject
+                    ? loadingSubjects
+                      ? 'Loading subjects...'
+                      : `${availableSubjects.length} subjects available - Select a Subject`
                     : !unit
                     ? loadingUnits 
                       ? 'Loading units...' 
-                      : `${availableUnits.length} units available - Select a Unit to load Topics`
+                      : `${availableUnits.length} units available - Select a Unit`
                     : !topic
                     ? loadingTopics
                       ? 'Loading topics...'
-                      : `${availableTopics.length} topics available - Select a Topic to proceed`
+                      : `${availableTopics.length} topics available - Select a Topic`
                     : (
                       <>
                         <FiCheck className="w-4 h-4 inline mr-1" />
@@ -175,22 +262,31 @@ export default function CurriculumSelector({
             <label htmlFor="syllabus" className="block text-sm font-semibold text-gray-700 mb-2">
               Syllabus
             </label>
-            <select
-              id="syllabus"
-              value={syllabus}
-              onChange={(e) => onSyllabusChange(e.target.value)}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200"
-            >
-              <option value="">Select Syllabus</option>
-              <option value="IB">IB</option>
-              <option value="IGCSE">IGCSE</option>
-              <option value="Common Core">Common Core</option>
-              <option value="National Curriculum">National Curriculum</option>
-              <option value="AP">AP (Advanced Placement)</option>
-              <option value="A-Levels">A-Levels</option>
-              <option value="CBSE">CBSE</option>
-              <option value="ICSE">ICSE</option>
-            </select>
+            <div className="relative">
+              <select
+                id="syllabus"
+                value={syllabus}
+                onChange={(e) => onSyllabusChange(e.target.value)}
+                disabled={loadingSyllabuses}
+                className={`w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200 ${
+                  loadingSyllabuses ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <option value="">
+                  {loadingSyllabuses ? 'Loading syllabuses...' : 'Select Syllabus'}
+                </option>
+                {availableSyllabuses.map((syllabusOption) => (
+                  <option key={syllabusOption.id} value={syllabusOption.id}>
+                    {syllabusOption.name}
+                  </option>
+                ))}
+              </select>
+              {loadingSyllabuses && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Grade Dropdown */}
@@ -198,26 +294,31 @@ export default function CurriculumSelector({
             <label htmlFor="grade" className="block text-sm font-semibold text-gray-700 mb-2">
               Grade
             </label>
-            <select
-              id="grade"
-              value={grade}
-              onChange={(e) => onGradeChange(e.target.value)}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200"
-            >
-              <option value="">Select Grade</option>
-              <option value="Grade 1">Grade 1</option>
-              <option value="Grade 2">Grade 2</option>
-              <option value="Grade 3">Grade 3</option>
-              <option value="Grade 4">Grade 4</option>
-              <option value="Grade 5">Grade 5</option>
-              <option value="Grade 6">Grade 6</option>
-              <option value="Grade 7">Grade 7</option>
-              <option value="Grade 8">Grade 8</option>
-              <option value="Grade 9">Grade 9</option>
-              <option value="Grade 10">Grade 10</option>
-              <option value="Grade 11">Grade 11</option>
-              <option value="Grade 12">Grade 12</option>
-            </select>
+            <div className="relative">
+              <select
+                id="grade"
+                value={grade}
+                onChange={(e) => onGradeChange(e.target.value)}
+                disabled={!syllabus || loadingGrades}
+                className={`w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200 ${
+                  (!syllabus || loadingGrades) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <option value="">
+                  {loadingGrades ? 'Loading grades...' : availableGrades.length > 0 ? 'Select Grade' : 'Select Syllabus first'}
+                </option>
+                {availableGrades.map((gradeOption) => (
+                  <option key={gradeOption.id} value={gradeOption.id}>
+                    {gradeOption.name}
+                  </option>
+                ))}
+              </select>
+              {loadingGrades && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Subject Dropdown */}
@@ -225,24 +326,31 @@ export default function CurriculumSelector({
             <label htmlFor="subject" className="block text-sm font-semibold text-gray-700 mb-2">
               Subject
             </label>
-            <select
-              id="subject"
-              value={subject}
-              onChange={(e) => onSubjectChange(e.target.value)}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200"
-            >
-              <option value="">Select Subject</option>
-              <option value="Mathematics">Mathematics</option>
-              <option value="Physics">Physics</option>
-              <option value="Chemistry">Chemistry</option>
-              <option value="Biology">Biology</option>
-              <option value="English">English</option>
-              <option value="History">History</option>
-              <option value="Geography">Geography</option>
-              <option value="Computer Science">Computer Science</option>
-              <option value="Economics">Economics</option>
-              <option value="Business Studies">Business Studies</option>
-            </select>
+            <div className="relative">
+              <select
+                id="subject"
+                value={subject}
+                onChange={(e) => onSubjectChange(e.target.value)}
+                disabled={!syllabus || !grade || loadingSubjects}
+                className={`w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200 ${
+                  (!syllabus || !grade || loadingSubjects) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <option value="">
+                  {loadingSubjects ? 'Loading subjects...' : availableSubjects.length > 0 ? 'Select Subject' : 'Select Grade first'}
+                </option>
+                {availableSubjects.map((subjectOption) => (
+                  <option key={subjectOption.id} value={subjectOption.id}>
+                    {subjectOption.name}
+                  </option>
+                ))}
+              </select>
+              {loadingSubjects && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Unit Dropdown */}
@@ -261,11 +369,11 @@ export default function CurriculumSelector({
                 }`}
               >
                 <option value="">
-                  {loadingUnits ? 'Loading units...' : availableUnits.length > 0 ? 'Select Unit' : 'Select Syllabus, Grade & Subject first'}
+                  {loadingUnits ? 'Loading units...' : availableUnits.length > 0 ? 'Select Unit' : 'Select Subject first'}
                 </option>
-                {availableUnits.map((unitOption, index) => (
-                  <option key={index} value={unitOption}>
-                    {unitOption}
+                {availableUnits.map((unitOption) => (
+                  <option key={unitOption.id} value={unitOption.id}>
+                    {unitOption.name}
                   </option>
                 ))}
               </select>
@@ -287,17 +395,17 @@ export default function CurriculumSelector({
                 id="topic"
                 value={topic}
                 onChange={(e) => onTopicChange(e.target.value)}
-                disabled={!unit || loadingTopics}
+                disabled={!syllabus || !grade || !subject || !unit || loadingTopics}
                 className={`w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 transition-all duration-200 ${
-                  (!unit || loadingTopics) ? 'opacity-50 cursor-not-allowed' : ''
+                  (!syllabus || !grade || !subject || !unit || loadingTopics) ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 <option value="">
                   {loadingTopics ? 'Loading topics...' : availableTopics.length > 0 ? 'Select Topic' : 'Select Unit first'}
                 </option>
-                {availableTopics.map((topicOption, index) => (
-                  <option key={index} value={topicOption}>
-                    {topicOption}
+                {availableTopics.map((topicOption) => (
+                  <option key={topicOption.id} value={topicOption.id}>
+                    {topicOption.name}
                   </option>
                 ))}
               </select>

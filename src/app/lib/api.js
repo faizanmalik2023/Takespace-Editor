@@ -447,6 +447,140 @@ const getTeacherAnalyticsPageData = async (filters = {}) => {
   }
 };
 
+// Profile API
+const getUserProfile = async () => {
+  try {
+    const url = `${API_BASE_URL}/editor/profile/`;
+    const data = await apiRequest(url);
+    return data;
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    throw error;
+  }
+};
+
+const changePassword = async (passwordData) => {
+  try {
+    const url = `${API_BASE_URL}/editor/profile/change-password/`;
+    
+    // Create FormData for multipart/form-data
+    const formData = new FormData();
+    formData.append('current_password', passwordData.current_password);
+    formData.append('new_password', passwordData.new_password);
+    formData.append('confirm_password', passwordData.confirm_password);
+    
+    const accessToken = (typeof window !== 'undefined')
+      ? (localStorage.getItem('access_token') || sessionStorage.getItem('access_token'))
+      : null;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'accept': '*/*',
+        'Authorization': `Bearer ${accessToken}`,
+        'X-CSRFTOKEN': 'dXSyhbcqpWFmev8iBSRLn5U1LqnO2uNzOcPRjSBwpWq60VJjjnKWwGvh8UCSABly'
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let body = null;
+      try { body = text ? JSON.parse(text) : null; } catch (_) {}
+      
+      const extractMessage = (payload) => {
+        if (!payload) return null;
+        if (typeof payload === 'string') return payload;
+        if (typeof payload === 'object') {
+          if (payload.message && typeof payload.message === 'string') return payload.message;
+          if (payload.detail && typeof payload.detail === 'string') return payload.detail;
+          if (payload.error) return extractMessage(payload.error) || JSON.stringify(payload.error);
+          return JSON.stringify(payload);
+        }
+        return String(payload);
+      };
+
+      const message = extractMessage(body) || `Password change failed: ${response.status} ${response.statusText}`;
+      const error = new Error(message);
+      error.status = response.status;
+      error.body = body;
+      throw error;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error changing password:', error);
+    throw error;
+  }
+};
+
+const updateProfile = async (profileData) => {
+  try {
+    const url = `${API_BASE_URL}/editor/profile/update/`;
+    
+    // Create FormData for multipart/form-data
+    const formData = new FormData();
+    
+    // Add all profile fields to FormData
+    if (profileData.first_name) formData.append('first_name', profileData.first_name);
+    if (profileData.last_name) formData.append('last_name', profileData.last_name);
+    if (profileData.phone) formData.append('phone', profileData.phone);
+    if (profileData.date_of_birth) formData.append('date_of_birth', profileData.date_of_birth);
+    if (profileData.specialization) formData.append('specialization', profileData.specialization);
+    if (profileData.experience_level !== undefined) formData.append('experience_level', profileData.experience_level.toString());
+    if (profileData.mode) formData.append('mode', profileData.mode);
+    if (profileData.notifications_enabled !== undefined) formData.append('notifications_enabled', profileData.notifications_enabled.toString());
+    
+    // Handle avatar file upload
+    if (profileData.avatar && profileData.avatar instanceof File) {
+      formData.append('avatar', profileData.avatar);
+    }
+    
+    const accessToken = (typeof window !== 'undefined')
+      ? (localStorage.getItem('access_token') || sessionStorage.getItem('access_token'))
+      : null;
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'accept': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'X-CSRFTOKEN': 'dXSyhbcqpWFmev8iBSRLn5U1LqnO2uNzOcPRjSBwpWq60VJjjnKWwGvh8UCSABly'
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let body = null;
+      try { body = text ? JSON.parse(text) : null; } catch (_) {}
+      
+      const extractMessage = (payload) => {
+        if (!payload) return null;
+        if (typeof payload === 'string') return payload;
+        if (typeof payload === 'object') {
+          if (payload.message && typeof payload.message === 'string') return payload.message;
+          if (payload.detail && typeof payload.detail === 'string') return payload.detail;
+          if (payload.error) return extractMessage(payload.error) || JSON.stringify(payload.error);
+          return JSON.stringify(payload);
+        }
+        return String(payload);
+      };
+
+      const message = extractMessage(body) || `Profile update failed: ${response.status} ${response.statusText}`;
+      const error = new Error(message);
+      error.status = response.status;
+      error.body = body;
+      throw error;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+};
+
 export const api = {
   getLearningData,
   login,
@@ -464,6 +598,10 @@ export const api = {
   getTeacherAnalyticsAPI,
   updateSubjectGoals,
   getTeacherAnalyticsPageData,
+  // Profile API
+  getUserProfile,
+  changePassword,
+  updateProfile,
   // Student APIs will be appended below
 };
 
@@ -482,4 +620,30 @@ export const getStudentStatistics = async (studentId, subjectId, dateRange = 'la
 export const updateStudentGoals = async (studentId, subjectId, payload) => {
   const url = `${API_BASE_URL}/teacher/students/${studentId}/goals/${subjectId}/`;
   return apiRequest(url, { method: 'PATCH', body: JSON.stringify(payload) });
+};
+
+// --- Lookup APIs for Curriculum Selector ---
+export const getSyllabuses = async () => {
+  const url = `${API_BASE_URL}/lookup/syllabuses/`;
+  return apiRequest(url);
+};
+
+export const getLookupGrades = async (syllabusId) => {
+  const url = `${API_BASE_URL}/lookup/grades/?syllabus_id=${syllabusId}`;
+  return apiRequest(url);
+};
+
+export const getLookupSubjects = async (syllabusId, gradeId) => {
+  const url = `${API_BASE_URL}/lookup/subjects/?syllabus_id=${syllabusId}&grade_id=${gradeId}`;
+  return apiRequest(url);
+};
+
+export const getLookupUnits = async (syllabusId, gradeId, subjectId) => {
+  const url = `${API_BASE_URL}/lookup/units/?syllabus_id=${syllabusId}&grade_id=${gradeId}&subject_id=${subjectId}`;
+  return apiRequest(url);
+};
+
+export const getLookupTopics = async (syllabusId, gradeId, subjectId, unitId) => {
+  const url = `${API_BASE_URL}/lookup/topics/?syllabus_id=${syllabusId}&grade_id=${gradeId}&subject_id=${subjectId}&unit_id=${unitId}`;
+  return apiRequest(url);
 };

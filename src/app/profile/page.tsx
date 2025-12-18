@@ -164,6 +164,12 @@ function ProfilePage() {
     }));
   };
 
+  const handlePhoneChange = (value: string) => {
+    // Only allow numeric characters
+    const numericValue = value.replace(/[^0-9]/g, '');
+    handleInputChange('phone', numericValue);
+  };
+
   // Password change functions
   const handlePasswordChange = async () => {
     try {
@@ -421,7 +427,15 @@ function ProfilePage() {
                   <input
                     type="tel"
                     value={editData.phone || ''}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    onKeyPress={(e) => {
+                      // Prevent non-numeric characters from being typed
+                      if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+                        e.preventDefault();
+                      }
+                    }}
+                    pattern="[0-9]*"
+                    inputMode="numeric"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                     placeholder="Enter phone number"
                   />

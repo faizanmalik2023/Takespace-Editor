@@ -454,6 +454,7 @@ function ProfilePage() {
                     type="date"
                     value={editData.date_of_birth ? editData.date_of_birth.split('T')[0] : ''}
                     onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                   />
                 ) : (

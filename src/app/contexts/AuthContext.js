@@ -54,7 +54,8 @@ export const AuthProvider = ({ children }) => {
       const access = data?.tokens?.access || data?.access;
       const refresh = data?.tokens?.refresh || data?.refresh;
       const userData = data?.user || data?.data?.user;
-      if(userData?.role !== 'editor') {
+      // Allow both editor and chief_editor roles to access the Editor module
+      if(userData?.role !== 'editor' && userData?.role !== 'chief_editor') {
         toast.error('You are not authorized to access this page');
         return { success: false, error: 'You are not authorized to access this page' };
       }

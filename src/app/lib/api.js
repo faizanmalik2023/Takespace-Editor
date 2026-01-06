@@ -217,7 +217,8 @@ const updatePassword = async (passwordData) => {
 // Learning-related API methods
 const getSubjects = async () => {
   try {
-    const data = await apiRequest(`${API_BASE_URL}/subjects/`);
+    // Use lookup endpoint which returns all subjects when no filters provided
+    const data = await apiRequest(`${API_BASE_URL}/lookup/subjects/`);
     return data;
   } catch (error) {
     console.error('Error fetching subjects:', error);
@@ -228,6 +229,7 @@ const getSubjects = async () => {
 // Get grades API
 const getGrades = async () => {
   try {
+    // Use regular grades endpoint to get all grades
     const data = await apiRequest(`${API_BASE_URL}/grades/`);
     return data;
   } catch (error) {
@@ -646,4 +648,66 @@ export const getLookupUnits = async (syllabusId, gradeId, subjectId) => {
 export const getLookupTopics = async (syllabusId, gradeId, subjectId, unitId) => {
   const url = `${API_BASE_URL}/lookup/topics/?syllabus_id=${syllabusId}&grade_id=${gradeId}&subject_id=${subjectId}&unit_id=${unitId}`;
   return apiRequest(url);
+};
+
+// --- Editor Syllabus Management APIs ---
+export const getEditorSyllabuses = async () => {
+  const url = `${API_BASE_URL}/editor-syllabuses/`;
+  const data = await apiRequest(url);
+  return data;
+};
+
+export const getEditorSyllabus = async (syllabusId) => {
+  const url = `${API_BASE_URL}/editor-syllabuses/${syllabusId}/`;
+  const data = await apiRequest(url);
+  return data;
+};
+
+export const createEditorSyllabus = async (syllabusData) => {
+  const url = `${API_BASE_URL}/editor-syllabuses/`;
+  const data = await apiRequest(url, {
+    method: 'POST',
+    body: JSON.stringify(syllabusData)
+  });
+  return data;
+};
+
+export const updateEditorSyllabus = async (syllabusId, syllabusData) => {
+  const url = `${API_BASE_URL}/editor-syllabuses/${syllabusId}/`;
+  const data = await apiRequest(url, {
+    method: 'PATCH',
+    body: JSON.stringify(syllabusData)
+  });
+  return data;
+};
+
+export const deleteEditorSyllabus = async (syllabusId) => {
+  const url = `${API_BASE_URL}/editor-syllabuses/${syllabusId}/`;
+  const data = await apiRequest(url, {
+    method: 'DELETE'
+  });
+  return data;
+};
+
+export const addUnitsToSyllabus = async (syllabusId, unitIds) => {
+  const url = `${API_BASE_URL}/editor-syllabuses/${syllabusId}/add_units/`;
+  const data = await apiRequest(url, {
+    method: 'POST',
+    body: JSON.stringify({ unit_ids: unitIds })
+  });
+  return data;
+};
+
+export const removeUnitFromSyllabus = async (syllabusId, unitId) => {
+  const url = `${API_BASE_URL}/editor-syllabuses/${syllabusId}/remove-unit/${unitId}/`;
+  const data = await apiRequest(url, {
+    method: 'DELETE'
+  });
+  return data;
+};
+
+export const getSyllabusStatistics = async (syllabusId) => {
+  const url = `${API_BASE_URL}/editor-syllabuses/${syllabusId}/statistics/`;
+  const data = await apiRequest(url);
+  return data;
 };

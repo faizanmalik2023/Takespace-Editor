@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '../app/contexts/AuthContext';
 import { 
   FiFileText, 
   FiEdit3, 
@@ -13,7 +14,8 @@ import {
   FiRotateCcw ,
   FiUser,
   FiChevronLeft,
-  FiChevronRight
+  FiChevronRight,
+  FiBook
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -24,11 +26,17 @@ interface SidebarProps {
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Check if user is Chief Editor (can manage syllabuses)
+  const isChiefEditor = user?.role === 'chief_editor';
   
   const sections = [
     { id: '/', name: 'Create Question', icon: FiFileText, isRoute: true },
     { id: '/edit-question', name: 'Edit Questions', icon: FiEdit3, isRoute: true },
+    // Only show Syllabuses menu for Chief Editors
+    ...(isChiefEditor ? [{ id: '/syllabuses', name: 'Syllabuses', icon: FiBook, isRoute: true }] : []),
     { id: '/profile', name: 'Profile', icon: FiUser, isRoute: true },
   ];
 

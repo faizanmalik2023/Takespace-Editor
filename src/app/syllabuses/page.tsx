@@ -168,8 +168,8 @@ const SyllabusesPage = () => {
     // Validate form before submission
     if (!validateForm()) {
       toast.error('Please fill in all required fields');
-      return;
-    }
+        return;
+      }
 
     try {
       const payload = {

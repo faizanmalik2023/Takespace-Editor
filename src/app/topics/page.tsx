@@ -18,7 +18,7 @@ import {
   MdSearch,
   MdClear
 } from 'react-icons/md';
-import { getEditorTopics, searchTopics, createTopic, updateTopic, deleteTopic, getEditorUnits } from '../lib/api';
+import { getEditorTopics, searchTopics, createTopic, updateTopic, deleteTopic, getEditorUnits, getTopicRevisionMetadata } from '../lib/api';
 
 const TopicsPage = () => {
   const [topics, setTopics] = useState([]);
@@ -41,6 +41,7 @@ const TopicsPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [revisionMap, setRevisionMap] = useState<Record<number, any>>({});
   const [formData, setFormData] = useState({
     name: '',
     unit: ''
@@ -49,6 +50,7 @@ const TopicsPage = () => {
   useEffect(() => {
     fetchTopics();
     fetchLookupData();
+    fetchRevisionMetadata();
   }, []);
 
   // Close suggestions when clicking outside
@@ -110,6 +112,17 @@ const TopicsPage = () => {
       toast.error('Failed to load units');
     } finally {
       setLoadingLookup(false);
+    }
+  };
+
+  const fetchRevisionMetadata = async () => {
+    try {
+      const data = await getTopicRevisionMetadata();
+      const map: Record<number, any> = {};
+      (Array.isArray(data) ? data : []).forEach((t: any) => { map[t.id] = t; });
+      setRevisionMap(map);
+    } catch (error: any) {
+      console.error('Error fetching revision metadata:', error);
     }
   };
 
@@ -412,6 +425,10 @@ const TopicsPage = () => {
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Subject</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Grade</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Questions</th>
+                    <th className="text-center py-3 px-4 font-semibold text-red-600">Red</th>
+                    <th className="text-center py-3 px-4 font-semibold text-yellow-600">Yellow</th>
+                    <th className="text-center py-3 px-4 font-semibold text-green-600">Green</th>
+                    <th className="text-center py-3 px-4 font-semibold text-gray-700">Avg Forgetting</th>
                     <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
                   </tr>
                 </thead>
@@ -438,6 +455,31 @@ const TopicsPage = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className="text-gray-700">{topic.total_questions || 0}</span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={revisionMap[topic.id]?.red_count > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}>
+                          {revisionMap[topic.id]?.red_count ?? '-'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={revisionMap[topic.id]?.yellow_count > 0 ? 'text-yellow-600 font-semibold' : 'text-gray-400'}>
+                          {revisionMap[topic.id]?.yellow_count ?? '-'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={revisionMap[topic.id]?.green_count > 0 ? 'text-green-600 font-semibold' : 'text-gray-400'}>
+                          {revisionMap[topic.id]?.green_count ?? '-'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={
+                          (revisionMap[topic.id]?.avg_forgetting_rate ?? 0) >= 2.5 ? 'text-red-600 font-semibold' :
+                          (revisionMap[topic.id]?.avg_forgetting_rate ?? 0) >= 1.5 ? 'text-yellow-600' : 'text-gray-600'
+                        }>
+                          {revisionMap[topic.id]?.avg_forgetting_rate != null
+                            ? revisionMap[topic.id].avg_forgetting_rate.toFixed(1)
+                            : '-'}
+                        </span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex justify-end gap-2">

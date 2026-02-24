@@ -1068,6 +1068,18 @@ export const deleteTopic = async (topicId) => {
 };
 
 
+// Get revision metadata for all topics (SRS stats)
+export const getTopicRevisionMetadata = async () => {
+  try {
+    const url = `${API_BASE_URL}/editor/topics/revision-metadata/`;
+    const data = await apiRequest(url);
+    return Array.isArray(data) ? data : (data?.results || data?.data || []);
+  } catch (error) {
+    console.error('Error fetching topic revision metadata:', error);
+    throw error;
+  }
+};
+
 // Get questions for a topic (editor's questions only)
 export const getTopicQuestions = async (topicId) => {
   try {

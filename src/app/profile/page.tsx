@@ -3,11 +3,32 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
-import Header from '../../components/Header';
-import Sidebar from '../../components/Sidebar';
+import PageLayout from '../../components/layout/PageLayout';
+import CardSimple from '../../components/ui/CardSimple';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Modal from '../../components/ui/Modal';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ProtectedRoute from '../../components/ProtectedRoute';
-import { FiUser, FiMail, FiCalendar, FiMapPin, FiPhone, FiEdit3, FiSave, FiX, FiBell, FiSettings, FiAward, FiShield, FiClock, FiCheck, FiX as FiXIcon, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
+import {
+  MdPerson,
+  MdEmail,
+  MdCalendarToday,
+  MdPhone,
+  MdEdit,
+  MdSave,
+  MdClose,
+  MdNotifications,
+  MdSettings,
+  MdStar,
+  MdShield,
+  MdAccessTime,
+  MdCheck,
+  MdLock,
+  MdVisibility,
+  MdVisibilityOff
+} from 'react-icons/md';
 
 interface UserProfile {
   first_name: string;
@@ -40,14 +61,13 @@ interface UserProfile {
   modified_at: string;
 }
 
-function ProfilePage() {
+function ProfilePageContent() {
   const { user: authUser } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
-  const [activeSection, setActiveSection] = useState<string>('profile');
-  
+
   // Password change state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -70,12 +90,7 @@ function ProfilePage() {
     try {
       setLoading(true);
       const data = await api.getUserProfile();
-      console.log('Profile data received:', data); // Debug log
-      
-      // Handle different response formats
       const profileData = data?.data || data || {};
-      console.log('Processed profile data:', profileData); // Debug log
-      
       setProfile(profileData);
       setEditData(profileData);
     } catch (error) {
@@ -99,8 +114,6 @@ function ProfilePage() {
   const handleSave = async () => {
     try {
       setLoading(true);
-      
-      // Prepare data for API call
       const updateData = {
         first_name: editData.first_name,
         last_name: editData.last_name,
@@ -112,19 +125,12 @@ function ProfilePage() {
         notifications_enabled: editData.notifications_enabled,
         avatar: editData.avatar
       };
-      
-      // Call the update API
+
       const response = await api.updateProfile(updateData);
-      console.log('Profile update response:', response); // Debug log
-      
-      // Handle different response formats
       const updatedProfile = response?.data || response || {};
-      
-      // Merge the updated data with existing profile to preserve all fields
       const mergedProfile = {
         ...profile,
         ...updatedProfile,
-        // Ensure we have the updated fields
         first_name: updatedProfile.first_name || profile?.first_name,
         last_name: updatedProfile.last_name || profile?.last_name,
         phone: updatedProfile.phone || profile?.phone,
@@ -136,15 +142,12 @@ function ProfilePage() {
         avatar: updatedProfile.avatar || profile?.avatar,
         full_name: updatedProfile.full_name || profile?.full_name || `${updatedProfile.first_name || profile?.first_name} ${updatedProfile.last_name || profile?.last_name}`
       };
-      
-      // Update local state with the merged profile
+
       setProfile(mergedProfile);
       setEditing(false);
       toast.success('Profile updated successfully');
-      
-      // If the response doesn't contain all necessary fields, refetch the profile
+
       if (!updatedProfile.first_name && !updatedProfile.last_name) {
-        console.log('Refetching profile data due to incomplete response');
         setTimeout(() => {
           fetchProfile();
         }, 1000);
@@ -158,47 +161,35 @@ function ProfilePage() {
   };
 
   const handleInputChange = (field: keyof UserProfile, value: string | number | boolean | File) => {
-    setEditData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setEditData(prev => ({ ...prev, [field]: value }));
   };
 
   const handlePhoneChange = (value: string) => {
-    // Only allow numeric characters
     const numericValue = value.replace(/[^0-9]/g, '');
     handleInputChange('phone', numericValue);
   };
 
-  // Password change functions
   const handlePasswordChange = async () => {
     try {
       setPasswordLoading(true);
-      
-      // Validation
+
       if (!passwordData.current_password || !passwordData.new_password || !passwordData.confirm_password) {
         toast.error('Please fill in all password fields');
         return;
       }
-      
       if (passwordData.new_password !== passwordData.confirm_password) {
         toast.error('New password and confirm password do not match');
         return;
       }
-      
       if (passwordData.new_password.length < 8) {
         toast.error('New password must be at least 8 characters long');
         return;
       }
-      
+
       await api.changePassword(passwordData);
       toast.success('Password changed successfully');
       setShowPasswordModal(false);
-      setPasswordData({
-        current_password: '',
-        new_password: '',
-        confirm_password: ''
-      });
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
     } catch (error: any) {
       console.error('Error changing password:', error);
       toast.error(error?.message || 'Failed to change password');
@@ -208,188 +199,128 @@ function ProfilePage() {
   };
 
   const handlePasswordInputChange = (field: string, value: string) => {
-    setPasswordData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setPasswordData(prev => ({ ...prev, [field]: value }));
   };
 
   const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
-    setShowPasswords(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
+    setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
   };
 
   const openPasswordModal = () => {
     setShowPasswordModal(true);
-    setPasswordData({
-      current_password: '',
-      new_password: '',
-      confirm_password: ''
-    });
-  };
-
-  const closePasswordModal = () => {
-    setShowPasswordModal(false);
-    setPasswordData({
-      current_password: '',
-      new_password: '',
-      confirm_password: ''
-    });
+    setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#E3F3FF]">
-        <Header />
-        <div className="flex h-[calc(100vh-80px)]">
-          <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading profile...</p>
-            </div>
-          </div>
+      <PageLayout title="Profile" subtitle="Manage your account settings">
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#E3F3FF]">
-        <Header />
-        <div className="flex h-[calc(100vh-80px)]">
-          <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-gray-600">Failed to load profile data</p>
-              <button 
-                onClick={fetchProfile}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Retry
-              </button>
-            </div>
+      <PageLayout title="Profile" subtitle="Manage your account settings">
+        <CardSimple>
+          <div className="text-center py-12">
+            <MdPerson className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 mb-4">Failed to load profile data</p>
+            <Button onClick={fetchProfile}>
+              Retry
+            </Button>
           </div>
-        </div>
-      </div>
+        </CardSimple>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#E3F3FF]">
-      {/* Header */}
-      <Header />
-
-      {/* Main Layout */}
-      <div className="flex h-[calc(100vh-80px)]">
-        {/* Sidebar */}
-        <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-4xl mx-auto py-8 px-4">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
-          <div className="p-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                    {profile.avatar ? (
-                      <img 
-                        src={profile.avatar} 
-                        alt="Profile" 
-                        className="w-20 h-20 rounded-full object-cover"
-                      />
-                    ) : (
-                      <FiUser className="w-10 h-10 text-white" />
-                    )}
-                  </div>
-                  {editing && (
-                    <label className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-1 cursor-pointer hover:bg-blue-700 transition-colors">
-                      <FiEdit3 className="w-3 h-3" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleInputChange('avatar', file);
-                          }
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {profile.full_name || `${profile.first_name || 'N/A'} ${profile.last_name || 'N/A'}`}
-                  </h1>
-                  <p className="text-gray-600">{profile.email || 'N/A'}</p>
-                  <p className="text-sm text-gray-500 capitalize">{profile.specialization || 'N/A'}</p>
-                </div>
-              </div>
-              <div className="flex space-x-3">
-                {editing ? (
-                  <>
-                    <button
-                      onClick={handleSave}
-                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <FiSave className="w-4 h-4" />
-                      <span>Save</span>
-                    </button>
-                    <button
-                      onClick={handleCancel}
-                      className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      <FiX className="w-4 h-4" />
-                      <span>Cancel</span>
-                    </button>
-                  </>
+    <PageLayout
+      title="Profile"
+      subtitle="Manage your account settings"
+      actions={
+        editing ? (
+          <div className="flex gap-3">
+            <Button onClick={handleSave} variant="success" className="flex items-center gap-2">
+              <MdSave className="w-4 h-4" />
+              Save
+            </Button>
+            <Button onClick={handleCancel} variant="secondary" className="flex items-center gap-2">
+              <MdClose className="w-4 h-4" />
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-3">
+            <Button onClick={handleEdit} className="flex items-center gap-2">
+              <MdEdit className="w-4 h-4" />
+              Edit Profile
+            </Button>
+            <Button onClick={openPasswordModal} variant="warning" className="flex items-center gap-2">
+              <MdLock className="w-4 h-4" />
+              Change Password
+            </Button>
+          </div>
+        )
+      }
+    >
+      <div className="space-y-6">
+        {/* Profile Header Card */}
+        <CardSimple>
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <div className="w-20 h-20 bg-gradient-to-br from-[#103358] to-[#398AC8] rounded-full flex items-center justify-center">
+                {profile.avatar ? (
+                  <img
+                    src={profile.avatar}
+                    alt="Profile"
+                    className="w-20 h-20 rounded-full object-cover"
+                  />
                 ) : (
-                  <>
-                    <button
-                      onClick={handleEdit}
-                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <FiEdit3 className="w-4 h-4" />
-                      <span>Edit Profile</span>
-                    </button>
-                    <button
-                      onClick={openPasswordModal}
-                      className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                    >
-                      <FiLock className="w-4 h-4" />
-                      <span>Change Password</span>
-                    </button>
-                  </>
+                  <MdPerson className="w-10 h-10 text-white" />
                 )}
               </div>
+              {editing && (
+                <label className="absolute -bottom-1 -right-1 bg-[#103358] text-white rounded-full p-1 cursor-pointer hover:bg-[#0a2544] transition-colors">
+                  <MdEdit className="w-3 h-3" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleInputChange('avatar', file);
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {profile.full_name || `${profile.first_name || 'N/A'} ${profile.last_name || 'N/A'}`}
+              </h2>
+              <p className="text-gray-600">{profile.email || 'N/A'}</p>
+              <p className="text-sm text-gray-500 capitalize">{profile.specialization || 'N/A'}</p>
             </div>
           </div>
-        </div>
+        </CardSimple>
 
         {/* Profile Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Personal Information */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
-            </div>
-            <div className="p-6 space-y-6">
+          <CardSimple title="Personal Information">
+            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
                 {editing ? (
-                  <input
+                  <Input
                     type="text"
                     value={editData.first_name || ''}
-                    onChange={(e) => handleInputChange('first_name', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('first_name', e.target.value)}
+                    error={undefined}
                   />
                 ) : (
                   <p className="text-gray-900">{profile.first_name}</p>
@@ -399,11 +330,11 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
                 {editing ? (
-                  <input
+                  <Input
                     type="text"
                     value={editData.last_name || ''}
-                    onChange={(e) => handleInputChange('last_name', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('last_name', e.target.value)}
+                    error={undefined}
                   />
                 ) : (
                   <p className="text-gray-900">{profile.last_name}</p>
@@ -413,7 +344,7 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 <div className="flex items-center space-x-2">
-                  <FiMail className="w-4 h-4 text-gray-400" />
+                  <MdEmail className="w-4 h-4 text-gray-400" />
                   <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
                     {profile.email || 'N/A'}
                   </p>
@@ -424,24 +355,16 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                 {editing ? (
-                  <input
+                  <Input
                     type="tel"
                     value={editData.phone || ''}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    onKeyPress={(e) => {
-                      // Prevent non-numeric characters from being typed
-                      if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
-                        e.preventDefault();
-                      }
-                    }}
-                    pattern="[0-9]*"
-                    inputMode="numeric"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePhoneChange(e.target.value)}
                     placeholder="Enter phone number"
+                    error={undefined}
                   />
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <FiPhone className="w-4 h-4 text-gray-400" />
+                    <MdPhone className="w-4 h-4 text-gray-400" />
                     <p className="text-gray-900">{profile.phone || 'N/A'}</p>
                   </div>
                 )}
@@ -450,16 +373,15 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
                 {editing ? (
-                  <input
+                  <Input
                     type="date"
                     value={editData.date_of_birth ? editData.date_of_birth.split('T')[0] : ''}
-                    onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                    max={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('date_of_birth', e.target.value)}
+                    error={undefined}
                   />
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <FiCalendar className="w-4 h-4 text-gray-400" />
+                    <MdCalendarToday className="w-4 h-4 text-gray-400" />
                     <p className="text-gray-900">
                       {profile.date_of_birth ? new Date(profile.date_of_birth).toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -474,16 +396,16 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
                 {editing ? (
-                  <input
+                  <Input
                     type="text"
                     value={editData.specialization || ''}
-                    onChange={(e) => handleInputChange('specialization', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('specialization', e.target.value)}
                     placeholder="Enter specialization"
+                    error={undefined}
                   />
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <FiSettings className="w-4 h-4 text-gray-400" />
+                    <MdSettings className="w-4 h-4 text-gray-400" />
                     <p className="text-gray-900">{profile.specialization || 'N/A'}</p>
                   </div>
                 )}
@@ -492,35 +414,30 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Experience Level</label>
                 {editing ? (
-                  <input
+                  <Input
                     type="number"
-                    min="1"
-                    max="100"
                     value={editData.experience_level || ''}
-                    onChange={(e) => handleInputChange('experience_level', parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('experience_level', parseInt(e.target.value) || 0)}
                     placeholder="Enter experience level (1-100)"
+                    error={undefined}
                   />
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <FiAward className="w-4 h-4 text-gray-400" />
+                    <MdStar className="w-4 h-4 text-gray-400" />
                     <p className="text-gray-900">{profile.experience_level || 'N/A'}</p>
                   </div>
                 )}
               </div>
             </div>
-          </div>
+          </CardSimple>
 
           {/* Account Information */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Account Information</h2>
-            </div>
-            <div className="p-6 space-y-6">
+          <CardSimple title="Account Information">
+            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Member Since</label>
                 <div className="flex items-center space-x-2">
-                  <FiCalendar className="w-4 h-4 text-gray-400" />
+                  <MdCalendarToday className="w-4 h-4 text-gray-400" />
                   <p className="text-gray-900">
                     {profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', {
                       year: 'numeric',
@@ -534,7 +451,7 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Last Modified</label>
                 <div className="flex items-center space-x-2">
-                  <FiClock className="w-4 h-4 text-gray-400" />
+                  <MdAccessTime className="w-4 h-4 text-gray-400" />
                   <p className="text-gray-900">
                     {profile.modified_at ? new Date(profile.modified_at).toLocaleDateString('en-US', {
                       year: 'numeric',
@@ -550,8 +467,8 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  profile.is_active 
-                    ? 'bg-green-100 text-green-800' 
+                  profile.is_active
+                    ? 'bg-green-100 text-green-800'
                     : 'bg-red-100 text-red-800'
                 }`}>
                   {profile.is_active ? 'Active' : 'Inactive'}
@@ -561,7 +478,7 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Experience Level</label>
                 <div className="flex items-center space-x-2">
-                  <FiAward className="w-4 h-4 text-gray-400" />
+                  <MdStar className="w-4 h-4 text-gray-400" />
                   <p className="text-gray-900">{profile.experience_level || 'N/A'}</p>
                 </div>
               </div>
@@ -569,7 +486,7 @@ function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
                 <div className="flex items-center space-x-2">
-                  <FiSettings className="w-4 h-4 text-gray-400" />
+                  <MdSettings className="w-4 h-4 text-gray-400" />
                   <p className="text-gray-900">{profile.specialization || 'N/A'}</p>
                 </div>
               </div>
@@ -580,7 +497,7 @@ function ProfilePage() {
                   <select
                     value={editData.mode || ''}
                     onChange={(e) => handleInputChange('mode', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                    className="w-full h-12 px-4 py-3 bg-white border-[1.5px] border-[#CBD5E1] rounded-xl focus:outline-none focus:border-[#398AC8] text-[#0F172A] transition-all duration-200"
                   >
                     <option value="">Select mode</option>
                     <option value="auto">Auto</option>
@@ -609,10 +526,10 @@ function ProfilePage() {
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <FiBell className="w-4 h-4 text-gray-400" />
+                    <MdNotifications className="w-4 h-4 text-gray-400" />
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      profile.notifications_enabled 
-                        ? 'bg-green-100 text-green-800' 
+                      profile.notifications_enabled
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
                       {profile.notifications_enabled ? 'Enabled' : 'Disabled'}
@@ -621,249 +538,209 @@ function ProfilePage() {
                 )}
               </div>
             </div>
-          </div>
+          </CardSimple>
         </div>
 
-        {/* Permissions Information */}
-        <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Permissions</h2>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Question Management</label>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    {profile.can_create_questions ? (
-                      <FiCheck className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <FiXIcon className="w-4 h-4 text-red-500" />
-                    )}
-                    <span className="text-sm text-gray-700">Create Questions</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {profile.can_edit_questions ? (
-                      <FiCheck className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <FiXIcon className="w-4 h-4 text-red-500" />
-                    )}
-                    <span className="text-sm text-gray-700">Edit Questions</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Topic Management</label>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    {profile.can_create_topics ? (
-                      <FiCheck className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <FiXIcon className="w-4 h-4 text-red-500" />
-                    )}
-                    <span className="text-sm text-gray-700">Create Topics</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {profile.can_edit_topics ? (
-                      <FiCheck className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <FiXIcon className="w-4 h-4 text-red-500" />
-                    )}
-                    <span className="text-sm text-gray-700">Edit Topics</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Unit Management</label>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    {profile.can_create_units ? (
-                      <FiCheck className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <FiXIcon className="w-4 h-4 text-red-500" />
-                    )}
-                    <span className="text-sm text-gray-700">Create Units</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {profile.can_edit_units ? (
-                      <FiCheck className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <FiXIcon className="w-4 h-4 text-red-500" />
-                    )}
-                    <span className="text-sm text-gray-700">Edit Units</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Account Status</label>
+        {/* Permissions */}
+        <CardSimple title="Permissions">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Question Management</label>
+              <div className="space-y-2">
                 <div className="flex items-center space-x-2">
-                  <FiShield className="w-4 h-4 text-gray-400" />
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    profile.is_active 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {profile.is_active ? 'Active Account' : 'Inactive Account'}
-                  </span>
+                  <MdCheck className={`w-4 h-4 ${profile.can_create_questions ? 'text-green-500' : 'text-red-500'}`} />
+                  <span className="text-sm text-gray-700">Create Questions</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MdCheck className={`w-4 h-4 ${profile.can_edit_questions ? 'text-green-500' : 'text-red-500'}`} />
+                  <span className="text-sm text-gray-700">Edit Questions</span>
                 </div>
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Topic Management</label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <MdCheck className={`w-4 h-4 ${profile.can_create_topics ? 'text-green-500' : 'text-red-500'}`} />
+                  <span className="text-sm text-gray-700">Create Topics</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MdCheck className={`w-4 h-4 ${profile.can_edit_topics ? 'text-green-500' : 'text-red-500'}`} />
+                  <span className="text-sm text-gray-700">Edit Topics</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Unit Management</label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <MdCheck className={`w-4 h-4 ${profile.can_create_units ? 'text-green-500' : 'text-red-500'}`} />
+                  <span className="text-sm text-gray-700">Create Units</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MdCheck className={`w-4 h-4 ${profile.can_edit_units ? 'text-green-500' : 'text-red-500'}`} />
+                  <span className="text-sm text-gray-700">Edit Units</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Account Status</label>
+              <div className="flex items-center space-x-2">
+                <MdShield className="w-4 h-4 text-gray-400" />
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  profile.is_active
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {profile.is_active ? 'Active Account' : 'Inactive Account'}
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
+        </CardSimple>
 
         {/* Password Change Modal */}
         {showPasswordModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold text-gray-900">Change Password</h3>
+          <Modal
+            isOpen={showPasswordModal}
+            onClose={() => {
+              setShowPasswordModal(false);
+              setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+            }}
+            title="Change Password"
+          >
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Current Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.current ? 'text' : 'password'}
+                    value={passwordData.current_password}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePasswordInputChange('current_password', e.target.value)}
+                    placeholder="Enter current password"
+                    error={undefined}
+                  />
                   <button
-                    onClick={closePasswordModal}
-                    className="text-gray-400 hover:text-gray-600"
+                    type="button"
+                    onClick={() => togglePasswordVisibility('current')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
-                    <FiX className="w-6 h-6" />
+                    {showPasswords.current ? (
+                      <MdVisibilityOff className="w-5 h-5 text-gray-400" />
+                    ) : (
+                      <MdVisibility className="w-5 h-5 text-gray-400" />
+                    )}
                   </button>
                 </div>
               </div>
-              
-              <div className="p-6 space-y-4">
-                {/* Current Password */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Current Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPasswords.current ? 'text' : 'password'}
-                      value={passwordData.current_password}
-                      onChange={(e) => handlePasswordInputChange('current_password', e.target.value)}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
-                      placeholder="Enter current password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => togglePasswordVisibility('current')}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    >
-                      {showPasswords.current ? (
-                        <FiEyeOff className="w-4 h-4 text-gray-400" />
-                      ) : (
-                        <FiEye className="w-4 h-4 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                </div>
 
-                {/* New Password */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPasswords.new ? 'text' : 'password'}
-                      value={passwordData.new_password}
-                      onChange={(e) => handlePasswordInputChange('new_password', e.target.value)}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
-                      placeholder="Enter new password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => togglePasswordVisibility('new')}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    >
-                      {showPasswords.new ? (
-                        <FiEyeOff className="w-4 h-4 text-gray-400" />
-                      ) : (
-                        <FiEye className="w-4 h-4 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Confirm Password */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm New Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPasswords.confirm ? 'text' : 'password'}
-                      value={passwordData.confirm_password}
-                      onChange={(e) => handlePasswordInputChange('confirm_password', e.target.value)}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
-                      placeholder="Confirm new password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => togglePasswordVisibility('confirm')}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    >
-                      {showPasswords.confirm ? (
-                        <FiEyeOff className="w-4 h-4 text-gray-400" />
-                      ) : (
-                        <FiEye className="w-4 h-4 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Password Requirements */}
-                <div className="text-sm text-gray-600">
-                  <p>Password requirements:</p>
-                  <ul className="list-disc list-inside mt-1 space-y-1">
-                    <li>At least 8 characters long</li>
-                    <li>Must match confirmation</li>
-                  </ul>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  New Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.new ? 'text' : 'password'}
+                    value={passwordData.new_password}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePasswordInputChange('new_password', e.target.value)}
+                    placeholder="Enter new password"
+                    error={undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('new')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPasswords.new ? (
+                      <MdVisibilityOff className="w-5 h-5 text-gray-400" />
+                    ) : (
+                      <MdVisibility className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
                 </div>
               </div>
 
-              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
-                <button
-                  onClick={closePasswordModal}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.confirm ? 'text' : 'password'}
+                    value={passwordData.confirm_password}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePasswordInputChange('confirm_password', e.target.value)}
+                    placeholder="Confirm new password"
+                    error={undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('confirm')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPasswords.confirm ? (
+                      <MdVisibilityOff className="w-5 h-5 text-gray-400" />
+                    ) : (
+                      <MdVisibility className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="text-sm text-gray-600">
+                <p>Password requirements:</p>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li>At least 8 characters long</li>
+                  <li>Must match confirmation</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+                  }}
                   disabled={passwordLoading}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="warning"
                   onClick={handlePasswordChange}
                   disabled={passwordLoading}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  className="flex items-center gap-2"
                 >
                   {passwordLoading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <LoadingSpinner size="small" />
                       <span>Changing...</span>
                     </>
                   ) : (
                     <>
-                      <FiLock className="w-4 h-4" />
+                      <MdLock className="w-4 h-4" />
                       <span>Change Password</span>
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </div>
-          </div>
+          </Modal>
         )}
-          </div>
-        </div>
       </div>
-    </div>
+    </PageLayout>
   );
 }
 
 export default function Profile() {
   return (
     <ProtectedRoute>
-      <ProfilePage />
+      <ProfilePageContent />
     </ProtectedRoute>
   );
 }
-
-
